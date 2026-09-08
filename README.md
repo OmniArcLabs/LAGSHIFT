@@ -6,6 +6,17 @@
 
 **LAGSHIFT by [OMNIARC](https://github.com/OmniArcLabs)**
 
+[![Release](https://img.shields.io/github/v/release/OmniArcLabs/LAGSHIFT?display_name=tag&style=flat-square&color=20d9f5)](https://github.com/OmniArcLabs/LAGSHIFT/releases/latest)
+[![CI](https://github.com/OmniArcLabs/LAGSHIFT/actions/workflows/ci.yml/badge.svg)](https://github.com/OmniArcLabs/LAGSHIFT/actions/workflows/ci.yml)
+[![CodeQL](https://github.com/OmniArcLabs/LAGSHIFT/actions/workflows/codeql.yml/badge.svg)](https://github.com/OmniArcLabs/LAGSHIFT/actions/workflows/codeql.yml)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-8a38f5.svg?style=flat-square)](LICENSE)
+
+[**دانلود آخرین نسخه**](https://github.com/OmniArcLabs/LAGSHIFT/releases/latest) ·
+[شروع سریع](QUICKSTART.md) ·
+[بررسی اصالت دانلود](VERIFY_DOWNLOAD.md) ·
+[وضعیت اعتبارسنجی](docs/RELEASE_CHECKLIST.md) ·
+[گزارش مشکل](https://github.com/OmniArcLabs/LAGSHIFT/issues/new/choose)
+
 LAGSHIFT یک ابزار ویندوزی برای اندازه‌گیری و بهینه‌سازی اتصال بازی‌های آنلاین است.
 نسخه عمومی VPN عمومی، فروشنده سرور یا ابزار عبور همه ترافیک سیستم نیست.
 
@@ -90,7 +101,8 @@ WARP و DNS وابسته به اپراتور است و نباید بدون گز�
 - آپدیت Resume‌پذیر با کانال‌های جدا و امضاشده Stable/Beta و Match Lock
 
 اسناد انتشار در `PRIVACY.md`، `SECURITY.md`، `QUICKSTART.md`،
-`RELEASE_NOTES.md` و `SBOM.cdx.json` نگهداری و همراه Build بسته‌بندی می‌شوند.
+`RELEASE_NOTES.md`، `CHANGELOG.md` و `SBOM.cdx.json` نگهداری و همراه Build
+بسته‌بندی می‌شوند. برنامهٔ توسعهٔ عمومی در [`ROADMAP.md`](ROADMAP.md) قرار دارد.
 
 ## راستی‌آزمایی دانلود رسمی
 

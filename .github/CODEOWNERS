@@ -1,0 +1,9 @@
+# Default ownership for every tracked path.
+* @OmniArcLabs
+
+# Security- and release-sensitive areas.
+/.github/ @OmniArcLabs
+/app/services/ @OmniArcLabs
+/backend/ @OmniArcLabs
+/installer/ @OmniArcLabs
+/tools/ @OmniArcLabs
