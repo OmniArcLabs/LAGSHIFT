@@ -11,6 +11,11 @@
     <AssemblyName>LAGSHIFT-1.0.0-Setup</AssemblyName>
     <RootNamespace>Lagshift.Setup</RootNamespace>
     <Version>1.0.0.0</Version>
+    <Company>OMNIARC</Company>
+    <Authors>OMNIARC</Authors>
+    <Product>LAGSHIFT Secure Setup</Product>
+    <Description>LAGSHIFT Secure Installer</Description>
+    <Copyright>Copyright 2026 OMNIARC. All rights reserved.</Copyright>
     <PublishSingleFile>true</PublishSingleFile>
     <IncludeNativeLibrariesForSelfExtract>true</IncludeNativeLibrariesForSelfExtract>
     <IncludeAllContentForSelfExtract>true</IncludeAllContentForSelfExtract>
