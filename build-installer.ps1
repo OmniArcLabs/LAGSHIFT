@@ -1,7 +1,28 @@
+param(
+    [string]$CertificateThumbprint = '',
+    [string]$TimestampUrl = 'http://timestamp.digicert.com'
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 
 & .\build.ps1
+
+$projectPython = Join-Path $PSScriptRoot '.venv312\Scripts\python.exe'
+if (-not (Test-Path -LiteralPath $projectPython)) {
+    $projectPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
+}
+if (-not (Test-Path -LiteralPath $projectPython)) { $projectPython = 'python' }
+$distRoot = 'E:\LAGSHIFT-Builds\public-rc\dist\LAGSHIFT'
+$distExe = Join-Path $distRoot 'LAGSHIFT.exe'
+if ($CertificateThumbprint) {
+    & '.\tools\sign_windows_release.ps1' -CertificateThumbprint $CertificateThumbprint `
+        -TimestampUrl $TimestampUrl -Files @($distExe)
+    & $projectPython '.\tools\generate_integrity_catalog.py' $distRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Post-sign integrity catalog generation failed.' }
+    & $projectPython '.\tools\audit_public_archive.py' $distRoot
+    if ($LASTEXITCODE -ne 0) { throw 'Post-sign public archive audit failed.' }
+}
 
 $candidates = @(
     'E:\LAGSHIFT-Builds\tools\Inno\ISCC.exe',
@@ -18,6 +39,12 @@ if (-not $compiler) {
 & $compiler '/DBootstrapEngine' '.\installer\LAGSHIFT.iss'
 if ($LASTEXITCODE -ne 0) {
     throw "Installer engine compilation failed with exit code $LASTEXITCODE"
+}
+
+$engineInstaller = 'E:\LAGSHIFT-Builds\engine\LAGSHIFT-1.0.0-Engine.exe'
+if ($CertificateThumbprint) {
+    & '.\tools\sign_windows_release.ps1' -CertificateThumbprint $CertificateThumbprint `
+        -TimestampUrl $TimestampUrl -Files @($engineInstaller)
 }
 
 $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
@@ -53,6 +80,15 @@ if ($LASTEXITCODE -ne 0) {
 }
 $lightInstaller = Join-Path $lightBinaryDir 'Release\net48\LAGSHIFT-1.0.0-Setup-Light.exe'
 Copy-Item -LiteralPath $lightInstaller -Destination (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-Light.exe') -Force
+
+if ($CertificateThumbprint) {
+    & '.\tools\sign_windows_release.ps1' -CertificateThumbprint $CertificateThumbprint `
+        -TimestampUrl $TimestampUrl -Files @(
+            $publicInstaller,
+            (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-SelfContained.exe'),
+            (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-Light.exe')
+        )
+}
 
 Write-Host 'Custom installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup.exe'
 Write-Host 'Lightweight installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup-Light.exe'

@@ -599,6 +599,20 @@ class ProductFoundationTests(unittest.TestCase):
         self.assertNotIn("{userappdata}", script.lower())
         self.assertNotIn("{localappdata}", script.lower())
 
+    def test_signed_release_pipeline_signs_inner_layers_before_packaging(self):
+        script = (Path(__file__).resolve().parents[1] / "build-installer.ps1").read_text(
+            encoding="utf-8"
+        )
+        sign_app = script.index("-Files @($distExe)")
+        build_engine = script.index("'/DBootstrapEngine'")
+        sign_engine = script.index("-Files @($engineInstaller)")
+        build_wrapper = script.index("dotnet publish")
+        sign_wrapper = script.rindex("sign_windows_release.ps1")
+        self.assertLess(sign_app, build_engine)
+        self.assertLess(build_engine, sign_engine)
+        self.assertLess(sign_engine, build_wrapper)
+        self.assertLess(build_wrapper, sign_wrapper)
+
     def test_legal_acceptance_is_versioned(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(
             os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
