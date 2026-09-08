@@ -1,3 +1,7 @@
+<p align="center">
+  <img src="docs/assets/lagshift-social-preview.jpg" alt="LAGSHIFT — Smarter routes. Clearer results." width="100%">
+</p>
+
 # LAGSHIFT
 
 **LAGSHIFT by [OMNIARC](https://github.com/OmniArcLabs)**

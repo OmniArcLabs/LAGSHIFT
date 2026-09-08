@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" width="1280" height="640" viewBox="0 0 1280 640" role="img" aria-labelledby="title desc">
+  <title id="title">LAGSHIFT social preview</title>
+  <desc id="desc">LAGSHIFT route optimizer for gamers, by OMNIARC.</desc>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#04090d"/>
+      <stop offset="0.55" stop-color="#07141c"/>
+      <stop offset="1" stop-color="#071019"/>
+    </linearGradient>
+    <linearGradient id="cyan" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#20d9f5"/>
+      <stop offset="1" stop-color="#5eeaff"/>
+    </linearGradient>
+    <linearGradient id="route" x1="0" y1="0" x2="1" y2="0">
+      <stop offset="0" stop-color="#20d9f5" stop-opacity="0"/>
+      <stop offset="0.52" stop-color="#20d9f5"/>
+      <stop offset="1" stop-color="#8a38f5"/>
+    </linearGradient>
+    <radialGradient id="cyanGlow">
+      <stop offset="0" stop-color="#20d9f5" stop-opacity="0.30"/>
+      <stop offset="1" stop-color="#20d9f5" stop-opacity="0"/>
+    </radialGradient>
+    <radialGradient id="violetGlow">
+      <stop offset="0" stop-color="#8a38f5" stop-opacity="0.25"/>
+      <stop offset="1" stop-color="#8a38f5" stop-opacity="0"/>
+    </radialGradient>
+    <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+      <path d="M40 0H0V40" fill="none" stroke="#4fcbe0" stroke-opacity="0.055" stroke-width="1"/>
+    </pattern>
+    <filter id="softGlow" x="-60%" y="-60%" width="220%" height="220%">
+      <feGaussianBlur stdDeviation="11" result="blur"/>
+      <feMerge><feMergeNode in="blur"/><feMergeNode in="SourceGraphic"/></feMerge>
+    </filter>
+    <filter id="shadow" x="-40%" y="-40%" width="180%" height="180%">
+      <feDropShadow dx="0" dy="16" stdDeviation="22" flood-color="#000" flood-opacity="0.55"/>
+    </filter>
+  </defs>
+
+  <rect width="1280" height="640" fill="url(#bg)"/>
+  <rect width="1280" height="640" fill="url(#grid)"/>
+  <ellipse cx="1020" cy="210" rx="420" ry="360" fill="url(#cyanGlow)"/>
+  <ellipse cx="1110" cy="500" rx="390" ry="300" fill="url(#violetGlow)"/>
+
+  <g opacity="0.60" fill="none" stroke-linecap="round">
+    <path d="M0 118H210L330 238H690" stroke="#20d9f5" stroke-opacity="0.16" stroke-width="2"/>
+    <path d="M0 522H260L390 392H760" stroke="#8a38f5" stroke-opacity="0.16" stroke-width="2"/>
+    <path d="M620 86h210l72 72h378" stroke="#f2fbff" stroke-opacity="0.08" stroke-width="2"/>
+  </g>
+
+  <g transform="translate(96 118)">
+    <rect width="404" height="404" rx="94" fill="#050a0e" stroke="#14313e" stroke-width="3" filter="url(#shadow)"/>
+    <rect x="18" y="18" width="368" height="368" rx="78" fill="none" stroke="#20d9f5" stroke-opacity="0.10" stroke-width="2"/>
+    <g transform="translate(31 31) scale(.668)" fill="none" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M58 154h118l85 82" stroke="#20d9f5" stroke-width="38"/>
+      <path d="M58 256h203" stroke="#20d9f5" stroke-width="38"/>
+      <path d="M58 358h118l85-82" stroke="#20d9f5" stroke-width="38"/>
+      <path d="M250 67l118 76v56M250 445l118-76v-56" stroke="#f2fbff" stroke-width="28"/>
+      <path d="M261 256h199" stroke="#8a38f5" stroke-width="38"/>
+    </g>
+  </g>
+
+  <g transform="translate(570 157)" font-family="Segoe UI, Arial, sans-serif">
+    <text x="0" y="104" fill="#f2fbff" font-size="86" font-weight="800" letter-spacing="5">LAGSHIFT</text>
+    <rect x="2" y="138" width="574" height="5" rx="2.5" fill="url(#route)" filter="url(#softGlow)"/>
+    <text x="2" y="205" fill="#94b4c4" font-size="28" font-weight="400" letter-spacing="1.2">SMARTER ROUTES. CLEARER RESULTS.</text>
+
+    <g transform="translate(2 258)">
+      <rect width="400" height="62" rx="31" fill="#0b202a" stroke="#1f5263" stroke-width="2"/>
+      <circle cx="34" cy="31" r="7" fill="#20d9f5" filter="url(#softGlow)"/>
+      <text x="58" y="40" fill="#d7eff7" font-size="20" font-weight="600" letter-spacing="0.7">LOCAL-FIRST WINDOWS APP</text>
+    </g>
+    <text x="4" y="375" fill="#7898a8" font-size="19" font-weight="600" letter-spacing="3">AN OMNIARC PRODUCT</text>
+  </g>
+
+  <rect x="0" y="632" width="1280" height="8" fill="url(#route)"/>
+</svg>
