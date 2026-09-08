@@ -27,10 +27,13 @@ configuration links, or screenshots that contain personal data.
 - Public builds do not accept imported tunnels or subscriptions and do not ship
   Xray, sing-box, Wintun, or OpenVPN engines.
 
-## Known release gates
+## Known release boundaries
 
-- Current RC artifacts are unsigned. A publisher certificate and trusted
-  timestamp are required before Stable distribution.
+- Version 1.0.0 artifacts are intentionally distributed without Authenticode.
+  Windows may show Unknown publisher or SmartScreen. Users must download only
+  from the official GitHub Releases page and compare the SHA-256 value with the
+  tracked release checksum file. A self-signed certificate is not presented as
+  a public trust mechanism.
 - The Cloudflare control plane and update keys are intentionally not configured
   in the local-first Stable source.
 - WARP and exclusive-fullscreen behavior require multi-network/device QA.
@@ -38,8 +41,9 @@ configuration links, or screenshots that contain personal data.
 ## Publisher checklist
 
 1. Keep private signing keys offline and outside the repository.
-2. Sign the application, privileged helper path, engine installer, and public
-   bootstrapper; apply a trusted timestamp.
+2. If a publicly trusted certificate is obtained later, sign the application,
+   privileged helper path, engine installer, and public bootstrapper; apply a
+   trusted timestamp. Until then, publish explicit unsigned status and hashes.
 3. Publish the matching support/security address and retention policy.
 4. Generate and archive the release SBOM, SHA-256 catalog, test report, and
    signed update manifest.

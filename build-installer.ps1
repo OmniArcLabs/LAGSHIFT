@@ -90,6 +90,10 @@ if ($CertificateThumbprint) {
         )
 }
 
+& '.\tools\write_release_checksums.ps1' -InstallerDirectory $installerDir
+Copy-Item -LiteralPath '.\SHA256SUMS.txt' `
+    -Destination (Join-Path $installerDir 'SHA256SUMS.txt') -Force
+
 Write-Host 'Custom installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup.exe'
 Write-Host 'Lightweight installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup-Light.exe'
 Write-Host 'Self-contained installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup-SelfContained.exe'

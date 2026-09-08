@@ -38,14 +38,14 @@ python -m pip install -r requirements.txt
 python main.py
 ```
 
-## آزمون و ساخت RC
+## آزمون و ساخت نسخه
 
 ```powershell
 python -m unittest discover -s tests -v
 powershell -ExecutionPolicy Bypass -File .\build.ps1
 ```
 
-خروجی RC فقط در `E:\LAGSHIFT-Builds\public-rc` ساخته می‌شود.
+خروجی انتشار فقط در `E:\LAGSHIFT-Builds\public-rc` ساخته می‌شود.
 
 آزمون‌های زنده و برگشت‌پذیر انتشار در `tools/qa_warp_live.py`،
 `tools/qa_dns_catalog.py` و `tools/qa_release_matrix.ps1` قرار دارند. نتیجهٔ
@@ -77,11 +77,20 @@ WARP و DNS وابسته به اپراتور است و نباید بدون گز�
 اطلاعات دسترسی به Source Code متناظر و اعلان‌های اجزای ثالث باشد. جزئیات در
 `LICENSE` و `THIRD_PARTY_NOTICES.md` آمده است.
 
-کانال آپدیت تا زمان تعیین دامنه انتشار، کلید امضای آفلاین و گواهی Authenticode
-عمداً غیرفعال می‌ماند.
+کانال آپدیت تا زمان تعیین دامنه انتشار و کلید امضای آفلاین عمداً غیرفعال
+می‌ماند. نسخهٔ 1.0.0 بدون گواهی Authenticode منتشر می‌شود و این وضعیت در صفحهٔ
+انتشار شفاف اعلام می‌شود؛ نبود امضای ویندوز به معنی تأیید امنیت فایل نیست و
+کاربر باید SHA-256 دانلود را با `SHA256SUMS.txt` تطبیق دهد.
 - سپر امنیت با بررسی سریع/کامل کاتالوگ SHA-256، وضعیت امضای ناشر، اعتماد آپدیت و بازیابی DNS
 - بازیابی اضطراری یک‌مرحله‌ای DNS، QoS متعلق به LAGSHIFT و WARP روشن‌شده توسط برنامه
 - آپدیت Resume‌پذیر با کانال‌های جدا و امضاشده Stable/Beta و Match Lock
 
 اسناد انتشار در `PRIVACY.md`، `SECURITY.md`، `QUICKSTART.md`،
 `RELEASE_NOTES.md` و `SBOM.cdx.json` نگهداری و همراه Build بسته‌بندی می‌شوند.
+
+## راستی‌آزمایی دانلود رسمی
+
+فایل را فقط از بخش Releases همین مخزن دریافت کنید. سپس طبق
+[`VERIFY_DOWNLOAD.md`](VERIFY_DOWNLOAD.md) هش SHA-256 آن را با
+[`SHA256SUMS.txt`](SHA256SUMS.txt) مقایسه کنید. تغییر حتی یک بایت، هش را عوض
+می‌کند. هش تطبیق‌یافته اصالت صفحهٔ دانلود را جایگزین نمی‌کند؛ هر دو باید بررسی شوند.
