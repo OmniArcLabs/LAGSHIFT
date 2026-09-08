@@ -18,6 +18,7 @@ from datetime import datetime, timedelta, timezone
 
 import psutil
 
+from app.app_info import ALLOW_REMOTE_BACKEND
 from app.services import app_paths, network_lab_service
 
 
@@ -198,6 +199,8 @@ def sanitize_remote_hint(value: dict | None) -> dict:
 
 def fetch_remote_hint(api_base: str, enabled: bool, timeout_s: float = 4.0) -> dict:
     """Fetch opt-in coarse edge metadata. The client never sends its IP in a payload."""
+    if not ALLOW_REMOTE_BACKEND:
+        return {}
     base = _public_https_base(api_base)
     if not enabled or not base:
         return {}
@@ -223,6 +226,8 @@ def measure_controlled_bandwidth(api_base: str, mode: str, *, deep_confirmed: bo
         return {"ok": False, "skipped": True, "reason": "network-busy", "mode": mode}
     if mode == "deep" and not deep_confirmed:
         return {"ok": False, "skipped": True, "reason": "confirmation-required", "mode": mode}
+    if not ALLOW_REMOTE_BACKEND:
+        return {"ok": False, "skipped": True, "reason": "local-stable", "mode": mode}
     base = _public_https_base(api_base)
     if not base:
         return {"ok": False, "skipped": True, "reason": "backend-unconfigured", "mode": mode}

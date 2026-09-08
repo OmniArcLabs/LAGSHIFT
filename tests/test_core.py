@@ -255,7 +255,7 @@ class RouteDnaTests(unittest.TestCase):
             self.assertEqual(memory["scope"], "operator-group")
             self.assertEqual(memory["confidence"], "experimental")
 
-    def test_anonymous_radar_never_queues_ip_or_readable_operator(self):
+    def test_public_stable_never_queues_anonymous_radar(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(
             os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
         ):
@@ -267,10 +267,8 @@ class RouteDnaTests(unittest.TestCase):
                     "geo": {"country": "IR"},
                 },
             }, True)
-            raw = radar_service._queue_file().read_text(encoding="utf-8")
-            self.assertNotIn("203.0.113.7", raw)
-            self.assertNotIn("Private ISP", raw)
-            self.assertIn("AS44244", raw)
+            self.assertFalse(radar_service._queue_file().exists())
+            self.assertFalse(app_info.ALLOW_REMOTE_BACKEND)
 
     def test_live_result_dominates_route_dna_memory(self):
         fast = {"profile": DnsProfile("Fast", "1.1.1.1"), "score": 90}
@@ -611,6 +609,25 @@ class ProductFoundationTests(unittest.TestCase):
             settings["privacy_acknowledged_version"] = app_info.PRIVACY_VERSION
             settings_service.save_settings(settings)
             self.assertTrue(settings_service.has_current_legal_acceptance())
+
+    def test_public_stable_ignores_stale_cloud_preferences(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(
+            os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
+        ):
+            settings_service.save_settings({
+                **settings_service.DEFAULTS,
+                "turbo_mode": True,
+                "gamelink_api_url": "https://example.com",
+                "anonymous_radar": True,
+                "route_dna_remote_geo": True,
+                "route_dna_share_aggregate": True,
+            })
+            settings = settings_service.load_settings()
+            self.assertFalse(settings["turbo_mode"])
+            self.assertEqual(settings["gamelink_api_url"], "")
+            self.assertFalse(settings["anonymous_radar"])
+            self.assertFalse(settings["route_dna_remote_geo"])
+            self.assertFalse(settings["route_dna_share_aggregate"])
 
 
 class ParserTests(unittest.TestCase):
@@ -1023,6 +1040,16 @@ class GameLinkTests(unittest.TestCase):
         parity, lengths = gamelink_service.xor_parity(packets)
         recovered = gamelink_service.recover_one([packets[0], None, packets[2]], parity, lengths)
         self.assertEqual(recovered, packets[1])
+
+    def test_public_stable_blocks_gamelink_bootstrap(self):
+        with self.assertRaisesRegex(RuntimeError, "غیرفعال"):
+            gamelink_service.bootstrap("https://example.com")
+
+    def test_public_stable_blocks_remote_route_dna(self):
+        self.assertEqual(route_dna_service.fetch_remote_hint("https://example.com", True), {})
+        result = route_dna_service.measure_controlled_bandwidth("https://example.com", "light")
+        self.assertTrue(result["skipped"])
+        self.assertEqual(result["reason"], "local-stable")
 
 
 class DiagnosticsTests(unittest.TestCase):

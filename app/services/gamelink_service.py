@@ -14,7 +14,7 @@ from pathlib import Path
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 
-from app.app_info import APP_NAME, APP_VERSION
+from app.app_info import ALLOW_GAMELINK, APP_NAME, APP_VERSION
 from app.services import app_paths, secure_storage
 
 
@@ -44,6 +44,8 @@ def device_public_key() -> str:
 
 
 def bootstrap(api_base: str, access_token: str = "") -> dict:
+    if not ALLOW_GAMELINK:
+        raise RuntimeError("GameLink در نسخه عمومی محلی LAGSHIFT غیرفعال است")
     if not api_base.strip():
         raise RuntimeError("آدرس سرور GameLink تنظیم نشده است")
     body = json.dumps({

@@ -19,7 +19,8 @@ from PySide6.QtWidgets import (
 
 from app.viewmodels.main_viewmodel import MainViewModel
 from app.app_info import (
-    ALLOW_CUSTOM_TUNNELS, APP_DISPLAY_NAME, APP_VERSION, BUILD_NUMBER, EDITION,
+    ALLOW_CUSTOM_TUNNELS, ALLOW_GAMELINK, ALLOW_REMOTE_BACKEND,
+    APP_DISPLAY_NAME, APP_VERSION, BUILD_NUMBER, EDITION,
     BRAND_PUBLISHER, LEGAL_PUBLISHER_NAME, SUPPORT_EMAIL, SUPPORT_URL,
     TERMS_VERSION, PRIVACY_VERSION,
 )
@@ -1223,7 +1224,7 @@ class MainWindow(QMainWindow):
 
         self.network_advanced_toggle = QPushButton("⚙ تنظیمات حرفه‌ای شبکه")
         self.network_advanced_toggle.setCheckable(True)
-        self.network_advanced_toggle.setToolTip("گزینه‌های مسیر پشتیبان، Turbo و GameLink")
+        self.network_advanced_toggle.setToolTip("RouteDNA محلی، بازیابی مسیر و QoS بازی")
         layout.addWidget(self.network_advanced_toggle)
         self.network_advanced_frame = QFrame()
         self.network_advanced_frame.setObjectName("homeStat")
@@ -1242,6 +1243,7 @@ class MainWindow(QMainWindow):
         self.turbo_check.setChecked(self.settings.get("turbo_mode", False))
         self.turbo_check.setToolTip("برای جلوگیری از دو IP متفاوت، این قابلیت فقط با سرور مشترک GameLink فعال می‌شود")
         advanced_layout.addWidget(self.turbo_check)
+        self.turbo_check.setVisible(ALLOW_GAMELINK)
 
         self.air_lite_check = QCheckBox("AIR Lite: دنبال‌کردن تغییر مقصد بازی در لحظه")
         self.air_lite_check.setChecked(self.settings.get("air_lite_enabled", True))
@@ -1315,6 +1317,7 @@ class MainWindow(QMainWindow):
             "تاریخچه یا گزارش خطا ذخیره نمی‌کند؛ فقط منطقه تقریبی، ASN و اپراتور برمی‌گردند"
         )
         advanced_layout.addWidget(self.route_dna_geo_check)
+        self.route_dna_geo_check.setVisible(ALLOW_REMOTE_BACKEND)
         geo_note = QLabel(
             "رضایت جداگانه و خاموش به‌صورت پیش‌فرض · برای کارکردن، آدرس GameLink باید "
             "تنظیم شده باشد. خاموش‌کردن، درخواست‌های جغرافیایی بعدی را متوقف می‌کند."
@@ -1322,6 +1325,7 @@ class MainWindow(QMainWindow):
         geo_note.setWordWrap(True)
         geo_note.setStyleSheet("color:#7895A1;")
         advanced_layout.addWidget(geo_note)
+        geo_note.setVisible(ALLOW_REMOTE_BACKEND)
 
         dna_test_row = QHBoxLayout()
         self.route_dna_test_btn = QPushButton("اجرای بررسی کامل RouteDNA")
@@ -1353,6 +1357,7 @@ class MainWindow(QMainWindow):
         server_features.setWordWrap(True)
         server_features.setStyleSheet("color:#FFD180; background:#241D12; border-radius:8px; padding:9px;")
         advanced_layout.addWidget(server_features)
+        server_features.setVisible(ALLOW_GAMELINK)
 
         self.radar_check = QCheckBox("مشارکت کاملاً اختیاری در رادار ناشناس کیفیت مسیر")
         self.radar_check.setChecked(self.settings.get("anonymous_radar", False))
@@ -1361,6 +1366,7 @@ class MainWindow(QMainWindow):
             "بدون IP، نام شبکه، دامنه، آدرس سرور، شناسه دستگاه یا حساب کاربری"
         )
         advanced_layout.addWidget(self.radar_check)
+        self.radar_check.setVisible(ALLOW_REMOTE_BACKEND)
         radar_note = QLabel(
             "خاموش به‌صورت پیش‌فرض · روشن‌کردن این گزینه فقط پس از تنظیم سرور GameLink، "
             "نمونه‌های تجمیعی بالا را ارسال می‌کند؛ خاموش‌کردن آن فوراً ارسال را متوقف می‌کند."
@@ -1368,11 +1374,15 @@ class MainWindow(QMainWindow):
         radar_note.setWordWrap(True)
         radar_note.setStyleSheet("color:#7895A1;")
         advanced_layout.addWidget(radar_note)
+        radar_note.setVisible(ALLOW_REMOTE_BACKEND)
 
-        advanced_layout.addWidget(QLabel("آدرس سرور GameLink (وقتی زیرساخت آماده شد):"))
+        gamelink_label = QLabel("آدرس سرور GameLink (وقتی زیرساخت آماده شد):")
+        advanced_layout.addWidget(gamelink_label)
         self.gamelink_url_input = QLineEdit(self.settings.get("gamelink_api_url", ""))
         self.gamelink_url_input.setPlaceholderText("https://api.example.com")
         advanced_layout.addWidget(self.gamelink_url_input)
+        gamelink_label.setVisible(ALLOW_GAMELINK)
+        self.gamelink_url_input.setVisible(ALLOW_GAMELINK)
         self.network_advanced_frame.hide()
         layout.addWidget(self.network_advanced_frame)
 

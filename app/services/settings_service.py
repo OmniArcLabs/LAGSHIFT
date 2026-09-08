@@ -7,7 +7,9 @@ import threading
 from pathlib import Path
 from typing import Any, Dict
 
-from app.app_info import PRIVACY_VERSION, TERMS_VERSION
+from app.app_info import (
+    ALLOW_GAMELINK, ALLOW_REMOTE_BACKEND, PRIVACY_VERSION, TERMS_VERSION,
+)
 from app.services import app_paths
 
 DEFAULTS: Dict[str, Any] = {
@@ -71,6 +73,13 @@ def load_settings() -> Dict[str, Any]:
             data = json.loads(path.read_text(encoding="utf-8"))
             merged = dict(DEFAULTS)
             merged.update(data)
+            if not ALLOW_GAMELINK:
+                merged["turbo_mode"] = False
+                merged["gamelink_api_url"] = ""
+            if not ALLOW_REMOTE_BACKEND:
+                merged["anonymous_radar"] = False
+                merged["route_dna_remote_geo"] = False
+                merged["route_dna_share_aggregate"] = False
             return merged
         except Exception:
             return dict(DEFAULTS)
@@ -88,6 +97,14 @@ def save_settings(settings: Dict[str, Any]) -> None:
 
 def set_value(key: str, value: Any) -> Dict[str, Any]:
     with _LOCK:
+        if key == "turbo_mode" and not ALLOW_GAMELINK:
+            value = False
+        if key == "gamelink_api_url" and not ALLOW_GAMELINK:
+            value = ""
+        if key in {
+            "anonymous_radar", "route_dna_remote_geo", "route_dna_share_aggregate",
+        } and not ALLOW_REMOTE_BACKEND:
+            value = False
         settings = load_settings()
         settings[key] = value
         save_settings(settings)

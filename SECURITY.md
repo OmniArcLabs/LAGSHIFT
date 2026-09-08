@@ -7,12 +7,12 @@ testing and must not be presented as production-ready.
 
 ## Reporting a vulnerability
 
-The official publisher page is https://github.com/OmniArcLabs. The LAGSHIFT
-repository must enable GitHub Private Vulnerability Reporting before Stable
-release. Until that private channel is published, do not post security reports
-or diagnostic archives in a public issue. Keep exported diagnostics local and
-never include passwords, account tokens, private configuration links, or
-screenshots that contain personal data.
+The official project page is https://github.com/OmniArcLabs/LAGSHIFT. GitHub
+Private Vulnerability Reporting is enabled for confidential security reports:
+https://github.com/OmniArcLabs/LAGSHIFT/security/advisories/new. Do not post
+security reports or diagnostic archives in a public issue. Keep exported
+diagnostics local and never include passwords, account tokens, private
+configuration links, or screenshots that contain personal data.
 
 ## Security boundaries
 
@@ -31,8 +31,8 @@ screenshots that contain personal data.
 
 - Current RC artifacts are unsigned. A publisher certificate and trusted
   timestamp are required before Stable distribution.
-- The Cloudflare control plane, update keys, and public security address are not
-  configured in source control.
+- The Cloudflare control plane and update keys are intentionally not configured
+  in the local-first Stable source.
 - WARP and exclusive-fullscreen behavior require multi-network/device QA.
 
 ## Publisher checklist

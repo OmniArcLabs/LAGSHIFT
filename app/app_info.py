@@ -3,13 +3,13 @@
 APP_NAME = "LAGSHIFT"
 APP_DISPLAY_NAME = "LAGSHIFT — لگ‌شیفت"
 APP_VERSION = "1.0.0"
-BUILD_NUMBER = "dev"
+BUILD_NUMBER = "1000"
 BRAND_PUBLISHER = "OMNIARC"
 # These values are intentionally empty until the owner approves public/legal
 # identity. Release tooling must fail the Stable gate rather than invent them.
 LEGAL_PUBLISHER_NAME = ""
 SUPPORT_EMAIL = ""
-SUPPORT_URL = "https://github.com/OmniArcLabs"
+SUPPORT_URL = "https://github.com/OmniArcLabs/LAGSHIFT/issues"
 DATA_FOLDER_NAME = "LAGSHIFT"
 LEGACY_DATA_FOLDER_NAME = "GameDNS"
 TERMS_VERSION = "1.3"
@@ -23,6 +23,12 @@ ALLOW_SYSTEM_WIDE_TUNNEL = EDITION == "developer"
 # The legacy device-registration path depends on an undocumented third-party
 # endpoint and is never shipped as a public feature.
 ALLOW_LEGACY_WARP_REGISTRATION = EDITION == "developer"
+
+# LAGSHIFT 1.0 Stable is intentionally local-first. These switches are the
+# release boundary, including when an old settings file still contains cloud
+# preferences from a development build.
+ALLOW_GAMELINK = EDITION == "developer"
+ALLOW_REMOTE_BACKEND = EDITION == "developer"
 
 # Filled by the release pipeline after the production update host and offline
 # Ed25519 signing key are created. Empty values intentionally disable networking.
