@@ -1,0 +1,19 @@
+name = "lagshift-control-plane"
+main = "src/index.js"
+compatibility_date = "2026-09-01"
+workers_dev = true
+
+[[kv_namespaces]]
+binding = "RELEASES"
+id = "REPLACE_WITH_KV_NAMESPACE_ID"
+
+[[analytics_engine_datasets]]
+binding = "RADAR"
+dataset = "lagshift_radar"
+
+[vars]
+RADAR_ENABLED = "false"
+
+# Add secrets with Wrangler; never commit their values:
+# wrangler secret put SESSION_SIGNING_SECRET
+# wrangler secret put BOOTSTRAP_ACCESS_TOKEN

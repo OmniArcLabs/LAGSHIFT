@@ -1,0 +1,105 @@
+openapi: 3.1.0
+info:
+  title: GameLink Control Plane
+  version: 1.0.0
+  description: >-
+    Control-plane contract for authenticated route discovery, server-enforced
+    quota and opt-in anonymous health aggregation. Tunnel encryption remains
+    in established transports such as Hysteria2, REALITY and MASQUE.
+paths:
+  /v1/client/bootstrap:
+    post:
+      summary: Exchange a device identity for short-lived routes
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BootstrapRequest'
+      responses:
+        '200':
+          description: Signed session, current quota and candidate routes
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/BootstrapResponse'
+  /v1/radar/batch:
+    post:
+      summary: Submit explicitly opted-in anonymous path measurements
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: array
+              maxItems: 100
+              items:
+                $ref: '#/components/schemas/RadarSample'
+      responses:
+        '204':
+          description: Accepted
+  /v1/session/usage:
+    get:
+      summary: Return authoritative server-side byte counters
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current quota
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Quota'
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+  schemas:
+    BootstrapRequest:
+      type: object
+      required: [device_public_key, capabilities]
+      properties:
+        device_public_key: {type: string, minLength: 40, maxLength: 64}
+        capabilities:
+          type: array
+          items: {type: string}
+    BootstrapResponse:
+      type: object
+      required: [session_token, expires_at, quota, routes]
+      properties:
+        session_token: {type: string}
+        expires_at: {type: string, format: date-time}
+        quota: {$ref: '#/components/schemas/Quota'}
+        routes:
+          type: array
+          items:
+            type: object
+            required: [id, transport, config, signature]
+            properties:
+              id: {type: string}
+              transport: {enum: [hysteria2, reality, masque]}
+              config: {type: string, description: DPAPI-protected by the client after receipt}
+              signature: {type: string, description: Ed25519 signature from the control plane}
+    Quota:
+      type: object
+      required: [used_bytes, limit_bytes, resets_at]
+      properties:
+        used_bytes: {type: integer, minimum: 0}
+        limit_bytes: {type: integer, minimum: 0}
+        resets_at: {type: string, format: date-time}
+    RadarSample:
+      type: object
+      additionalProperties: false
+      required: [score, latency, jitter, loss, mode, protocol, hour, os]
+      properties:
+        score: {type: integer, minimum: 0, maximum: 100}
+        latency: {type: integer}
+        jitter: {type: integer}
+        loss: {type: number, minimum: 0, maximum: 100}
+        mode: {type: string}
+        protocol: {type: string}
+        hour: {type: string}
+        os: {type: string}

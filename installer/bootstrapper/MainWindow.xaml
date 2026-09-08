@@ -1,0 +1,247 @@
+<Window x:Class="Lagshift.Setup.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="LAGSHIFT • Secure Setup" Width="900" Height="634"
+        MinWidth="820" MinHeight="580" WindowStartupLocation="CenterScreen"
+        WindowStyle="None" ResizeMode="NoResize" AllowsTransparency="True"
+        Background="Transparent" FontFamily="Segoe UI" Foreground="#EEF9FD"
+        FlowDirection="RightToLeft" Closing="Window_Closing" Closed="Window_Closed" SizeChanged="Window_SizeChanged">
+  <Window.Resources>
+    <SolidColorBrush x:Key="Muted" Color="#9DB4BF"/>
+    <SolidColorBrush x:Key="Cyan" Color="#62DFFF"/>
+    <Style x:Key="ActionButton" TargetType="Button">
+      <Setter Property="Height" Value="46"/><Setter Property="MinWidth" Value="108"/>
+      <Setter Property="Padding" Value="20,0"/><Setter Property="Margin" Value="5,0"/>
+      <Setter Property="Foreground" Value="#E8EDF8"/><Setter Property="Background" Value="#2D3345"/>
+      <Setter Property="BorderBrush" Value="#465164"/><Setter Property="BorderThickness" Value="1"/>
+      <Setter Property="FontSize" Value="14"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Border x:Name="Chrome" CornerRadius="9" Background="{TemplateBinding Background}"
+                    BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+              <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Chrome" Property="BorderBrush" Value="#77E8FF"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.78"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.38"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="PrimaryButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+      <Setter Property="MinWidth" Value="158"/><Setter Property="Foreground" Value="#031118"/>
+      <Setter Property="Background" Value="#18AEE9"/><Setter Property="BorderBrush" Value="#62DFFF"/>
+      <Setter Property="FontWeight" Value="SemiBold"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="Button">
+            <Grid>
+              <Border x:Name="Glow" Margin="4" CornerRadius="10" Background="#18AEE9" Opacity="0.72">
+                <Border.Effect><DropShadowEffect Color="#18AEE9" BlurRadius="22" ShadowDepth="0" Opacity="0.62"/></Border.Effect>
+              </Border>
+              <Border x:Name="Chrome" CornerRadius="9" Background="{TemplateBinding Background}"
+                      BorderBrush="{TemplateBinding BorderBrush}" BorderThickness="{TemplateBinding BorderThickness}">
+                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"
+                                  TextOptions.TextFormattingMode="Display" TextOptions.TextRenderingMode="ClearType"/>
+              </Border>
+            </Grid>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="Glow" Property="Opacity" Value="1"/></Trigger>
+              <Trigger Property="IsPressed" Value="True"><Setter TargetName="Chrome" Property="Opacity" Value="0.82"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter TargetName="Chrome" Property="Opacity" Value="0.42"/><Setter TargetName="Glow" Property="Opacity" Value="0.18"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+    <Style x:Key="GhostButton" TargetType="Button" BasedOn="{StaticResource ActionButton}">
+      <Setter Property="Background" Value="#080F14"/><Setter Property="Foreground" Value="#B9C5CE"/>
+    </Style>
+    <Style TargetType="CheckBox">
+      <Setter Property="Foreground" Value="#EAF7FB"/><Setter Property="FontSize" Value="14"/>
+      <Setter Property="Margin" Value="0,8"/><Setter Property="Cursor" Value="Hand"/>
+      <Setter Property="Template">
+        <Setter.Value>
+          <ControlTemplate TargetType="CheckBox">
+            <DockPanel LastChildFill="True" FlowDirection="RightToLeft">
+              <Border x:Name="CheckBoxFrame" DockPanel.Dock="Right" Width="21" Height="21" Margin="0,0,11,0"
+                      CornerRadius="6" Background="#111C27" BorderBrush="#536679" BorderThickness="1">
+                <Path x:Name="CheckMark" Data="M 3,9 L 7,13 L 16,3" Stroke="#031118" StrokeThickness="2.4"
+                      StrokeStartLineCap="Round" StrokeEndLineCap="Round" Stretch="None"
+                      HorizontalAlignment="Center" VerticalAlignment="Center" Visibility="Collapsed"
+                      FlowDirection="LeftToRight"/>
+              </Border>
+              <ContentPresenter VerticalAlignment="Center" RecognizesAccessKey="True"/>
+            </DockPanel>
+            <ControlTemplate.Triggers>
+              <Trigger Property="IsChecked" Value="True">
+                <Setter TargetName="CheckBoxFrame" Property="Background" Value="#62DFFF"/>
+                <Setter TargetName="CheckBoxFrame" Property="BorderBrush" Value="#8CEAFF"/>
+                <Setter TargetName="CheckMark" Property="Visibility" Value="Visible"/>
+              </Trigger>
+              <Trigger Property="IsMouseOver" Value="True"><Setter TargetName="CheckBoxFrame" Property="BorderBrush" Value="#62DFFF"/></Trigger>
+              <Trigger Property="IsEnabled" Value="False"><Setter Property="Opacity" Value="0.45"/></Trigger>
+            </ControlTemplate.Triggers>
+          </ControlTemplate>
+        </Setter.Value>
+      </Setter>
+    </Style>
+  </Window.Resources>
+
+  <Border BorderBrush="#34404F" BorderThickness="1" CornerRadius="10" Background="#071116">
+    <Grid ClipToBounds="True">
+      <Grid.RowDefinitions><RowDefinition Height="42"/><RowDefinition Height="*"/><RowDefinition Height="3"/><RowDefinition Height="82"/></Grid.RowDefinitions>
+
+      <Border Grid.Row="0" Background="#2D2D40" BorderBrush="#3B3B50" BorderThickness="0,0,0,1"
+              MouseLeftButtonDown="TitleBar_MouseLeftButtonDown" FlowDirection="LeftToRight">
+        <Grid Margin="15,0,8,0">
+          <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+            <Border Width="25" Height="25" CornerRadius="7" Background="#06151B" Margin="0,0,9,0" ClipToBounds="True">
+              <Image Source="Assets/lagshift.png" Stretch="UniformToFill" RenderOptions.BitmapScalingMode="HighQuality"/>
+            </Border>
+            <TextBlock Text="LAGSHIFT  •  Secure Setup" Foreground="#D8D9E4" FontSize="14" VerticalAlignment="Center"/>
+          </StackPanel>
+          <StackPanel HorizontalAlignment="Right" Orientation="Horizontal">
+            <Button Width="42" Background="Transparent" BorderThickness="0" Foreground="#ABB0BD" Content="—" Click="Minimize_Click" Cursor="Hand"/>
+            <Button Width="42" Background="Transparent" BorderThickness="0" Foreground="#ABB0BD" Content="×" FontSize="20" Click="Close_Click" Cursor="Hand"/>
+          </StackPanel>
+        </Grid>
+      </Border>
+
+      <Grid Grid.Row="1">
+        <Image Source="Assets/installer-background.png" Stretch="UniformToFill" Opacity="0.36" FlowDirection="LeftToRight"/>
+        <Rectangle Fill="#D9061016"/>
+        <Ellipse Width="540" Height="430" HorizontalAlignment="Left" VerticalAlignment="Bottom" Margin="-250,0,0,-220">
+          <Ellipse.Fill><RadialGradientBrush><GradientStop Color="#4220CFFF" Offset="0"/><GradientStop Color="#00159BC4" Offset="1"/></RadialGradientBrush></Ellipse.Fill>
+        </Ellipse>
+
+        <Grid Margin="44,27,44,20" MaxWidth="790" HorizontalAlignment="Stretch">
+          <Grid.RowDefinitions><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="Auto"/><RowDefinition Height="*"/></Grid.RowDefinitions>
+          <StackPanel Grid.Row="0" Orientation="Horizontal" HorizontalAlignment="Right">
+            <TextBlock Text="◆" Foreground="{StaticResource Cyan}" FontSize="12" Margin="0,1,8,0"/>
+            <TextBlock x:Name="KickerText" Text="راه‌اندازی امن و سریع" Foreground="{StaticResource Cyan}" FontSize="13" FontWeight="SemiBold"/>
+          </StackPanel>
+          <TextBlock x:Name="TitleText" Grid.Row="1" Text="قبل از ادامه، این نکات مهم را مرور کن" FontSize="25" FontWeight="SemiBold" Margin="0,10,0,0"/>
+          <TextBlock x:Name="SubtitleText" Grid.Row="2" Text="تنظیمات فعلی تو حفظ می‌شوند و فقط اجزای ضروری نصب خواهند شد."
+                     Foreground="{StaticResource Muted}" FontSize="14" Margin="0,8,0,18"/>
+
+          <Border Grid.Row="3" Background="#E6202639" BorderBrush="#3262DFFF" BorderThickness="1" CornerRadius="12" Padding="24,20">
+            <Grid>
+              <StackPanel x:Name="InfoPage">
+                <TextBlock TextWrapping="Wrap" FontSize="15" LineHeight="29" Foreground="#EAF7FB">
+                  <Run Text="LAGSHIFT یک بهینه‌ساز اتصال بازی است و سرویس VPN عمومی محسوب نمی‌شود."/><LineBreak/><LineBreak/>
+                  <Run Text="این نسخه امکان ورود کانفیگ یا Subscription ندارد. قابلیت WARP فقط پس از شناسایی کلاینت رسمی و تأیید واقعی مسیر فعال می‌شود."/><LineBreak/><LineBreak/>
+                  <Run Text="نصب نسخه جدید، تنظیمات و داده‌های شخصی قبلی را حذف نمی‌کند."/><LineBreak/><LineBreak/>
+                  <Run Text="شرایط کامل استفاده و حریم خصوصی در اولین اجرای برنامه نمایش داده می‌شود."/>
+                </TextBlock>
+              </StackPanel>
+
+              <StackPanel x:Name="LocationPage" Visibility="Collapsed">
+                <TextBlock Text="پوشه نصب" Foreground="#9DB4BF" FontSize="13" Margin="0,0,0,8"/>
+                <Grid FlowDirection="LeftToRight">
+                  <Grid.ColumnDefinitions><ColumnDefinition/><ColumnDefinition Width="Auto"/></Grid.ColumnDefinitions>
+                  <Border Grid.Column="0" Background="#101925" BorderBrush="#405164" BorderThickness="1" CornerRadius="8" Padding="15,11">
+                    <TextBox x:Name="InstallPathBox" Text="C:\Program Files\LAGSHIFT" Foreground="#EEF9FD" Background="Transparent" BorderThickness="0" FontSize="14" FlowDirection="LeftToRight"/>
+                  </Border>
+                  <Button Grid.Column="1" Content="انتخاب پوشه" Style="{StaticResource ActionButton}" Margin="10,0,0,0" Click="Browse_Click" FlowDirection="RightToLeft"/>
+                </Grid>
+                <Border Background="#111B25" CornerRadius="8" Padding="14" Margin="0,18,0,0">
+                  <TextBlock Text="مسیر پیشنهادی برای بیشتر کاربران بهترین انتخاب است. برای نصب، دسترسی مدیر ویندوز استفاده می‌شود." TextWrapping="Wrap" Foreground="#BFD2DB" LineHeight="24"/>
+                </Border>
+              </StackPanel>
+
+              <StackPanel x:Name="OptionsPage" Visibility="Collapsed">
+                <TextBlock Text="میانبرها و اجرای اولیه" FontSize="17" FontWeight="SemiBold" Margin="0,0,0,12"/>
+                <CheckBox x:Name="DesktopShortcutCheck" Content="ساخت میانبر LAGSHIFT روی دسکتاپ"/>
+                <CheckBox x:Name="LaunchAfterCheck" Content="اجرای LAGSHIFT بعد از پایان نصب" IsChecked="True"/>
+                <CheckBox x:Name="ReduceMotionCheck" Content="حرکت کمتر؛ انیمیشن‌های نصب خاموش شوند" Checked="AccessibilityChanged" Unchecked="AccessibilityChanged"/>
+                <CheckBox x:Name="MuteInstallerCheck" Content="نصب‌کننده بی‌صدا باشد" IsChecked="True"/>
+                <CheckBox x:Name="RepairInstallCheck" Content="حالت تعمیر؛ فایل‌های برنامه دوباره بررسی و جایگزین شوند"/>
+                <Border Background="#111B25" CornerRadius="8" Padding="14" Margin="0,16,0,0">
+                  <TextBlock Text="تعمیر فقط فایل‌های نصب را جایگزین می‌کند؛ پروفایل‌ها و تنظیمات شخصی حذف نمی‌شوند. هیچ تنظیم شبکه‌ای تا قبل از تأیید خودت در برنامه تغییر نمی‌کند." TextWrapping="Wrap" Foreground="#BFD2DB" LineHeight="24"/>
+                </Border>
+              </StackPanel>
+
+              <StackPanel x:Name="ReadyPage" Visibility="Collapsed">
+                <TextBlock Text="همه‌چیز آماده است" FontSize="20" FontWeight="SemiBold" Margin="0,0,0,18"/>
+                <Grid><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                  <TextBlock Text="مسیر نصب" Foreground="#8FA9B5"/><TextBlock x:Name="ReadyPath" Grid.Column="1" TextAlignment="Right" TextTrimming="CharacterEllipsis"/>
+                </Grid>
+                <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                  <TextBlock Text="میانبر دسکتاپ" Foreground="#8FA9B5"/><TextBlock x:Name="ReadyShortcut" Grid.Column="1" TextAlignment="Right"/>
+                </Grid>
+                <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                  <TextBlock Text="اطلاعات قبلی" Foreground="#8FA9B5"/><TextBlock Grid.Column="1" Text="حفظ می‌شوند" TextAlignment="Right" Foreground="#73E8B0"/>
+                </Grid>
+                <Grid Margin="0,14,0,0"><Grid.ColumnDefinitions><ColumnDefinition Width="130"/><ColumnDefinition/></Grid.ColumnDefinitions>
+                  <TextBlock Text="نوع عملیات" Foreground="#8FA9B5"/><TextBlock x:Name="ReadyOperation" Grid.Column="1" TextAlignment="Right"/>
+                </Grid>
+              </StackPanel>
+
+              <StackPanel x:Name="InstallingPage" Visibility="Collapsed" VerticalAlignment="Center">
+                <TextBlock x:Name="InstallPercent" Text="۰٪" FontSize="42" FontWeight="Light" Foreground="{StaticResource Cyan}" HorizontalAlignment="Center"/>
+                <TextBlock x:Name="InstallStatus" Text="در حال آماده‌سازی موتور نصب…" Foreground="#C1D5DE" FontSize="15" HorizontalAlignment="Center" Margin="0,10,0,18"/>
+                <Border Height="9" Background="#13212A" CornerRadius="5">
+                  <Grid ClipToBounds="True"><Rectangle x:Name="InnerProgress" Fill="#62DFFF" HorizontalAlignment="Left" Width="0" RadiusX="5" RadiusY="5">
+                    <Rectangle.Effect><DropShadowEffect Color="#2DD7FF" BlurRadius="14" ShadowDepth="0" Opacity="0.8"/></Rectangle.Effect>
+                  </Rectangle></Grid>
+                </Border>
+              </StackPanel>
+
+              <StackPanel x:Name="FinishedPage" Visibility="Collapsed" VerticalAlignment="Center">
+                <Border Width="72" Height="72" CornerRadius="36" Background="#173C3549" BorderBrush="#73E8B0" BorderThickness="1" HorizontalAlignment="Center">
+                  <TextBlock Text="✓" Foreground="#73E8B0" FontSize="40" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                </Border>
+                <TextBlock Text="LAGSHIFT آماده است" FontSize="24" FontWeight="SemiBold" HorizontalAlignment="Center" Margin="0,18,0,0"/>
+                <TextBlock Text="نصب با موفقیت انجام شد؛ مسیر سریع‌تر از همین‌جا شروع می‌شود." Foreground="#AFC5CE" HorizontalAlignment="Center" Margin="0,9,0,0"/>
+              </StackPanel>
+            </Grid>
+          </Border>
+        </Grid>
+      </Grid>
+
+      <Grid Grid.Row="2" Background="#1D3039" FlowDirection="LeftToRight">
+        <Rectangle x:Name="StageProgress" HorizontalAlignment="Left" Fill="#62DFFF" Width="150">
+          <Rectangle.Effect><DropShadowEffect Color="#62DFFF" BlurRadius="12" ShadowDepth="0" Opacity="0.8"/></Rectangle.Effect>
+        </Rectangle>
+      </Grid>
+
+      <Grid Grid.Row="3" Margin="24,0,18,0" FlowDirection="LeftToRight">
+        <StackPanel Orientation="Horizontal" VerticalAlignment="Center">
+          <Rectangle Width="9" Height="9" Fill="#62DFFF" RenderTransformOrigin=".5,.5" Margin="0,0,12,0">
+            <Rectangle.RenderTransform><RotateTransform Angle="45"/></Rectangle.RenderTransform>
+            <Rectangle.Effect><DropShadowEffect Color="#62DFFF" BlurRadius="14" ShadowDepth="0"/></Rectangle.Effect>
+          </Rectangle>
+          <TextBlock x:Name="StageText" Text="مرحله ۱ از ۶ · مرور نکات مهم" Foreground="#DFF8FF" FontWeight="SemiBold" VerticalAlignment="Center" FlowDirection="RightToLeft"/>
+        </StackPanel>
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" VerticalAlignment="Center" FlowDirection="RightToLeft">
+          <Button x:Name="NextButton" Content="ادامه  ←" Style="{StaticResource PrimaryButton}" Click="Next_Click"/>
+          <Button x:Name="BackButton" Content="بازگشت" Style="{StaticResource ActionButton}" Click="Back_Click" IsEnabled="False"/>
+          <Button x:Name="CancelButton" Content="انصراف" Style="{StaticResource GhostButton}" Click="Close_Click"/>
+        </StackPanel>
+      </Grid>
+
+      <Grid x:Name="ExitOverlay" Grid.RowSpan="4" Panel.ZIndex="100" Visibility="Collapsed" Background="#C900080C">
+        <Border Width="460" Padding="28" HorizontalAlignment="Center" VerticalAlignment="Center"
+                Background="#15212D" BorderBrush="#536778" BorderThickness="1" CornerRadius="14">
+          <Border.Effect><DropShadowEffect Color="#000000" BlurRadius="38" ShadowDepth="10" Opacity="0.65"/></Border.Effect>
+          <StackPanel FlowDirection="RightToLeft">
+            <Border Width="48" Height="48" CornerRadius="24" Background="#182D3944" BorderBrush="#62DFFF" BorderThickness="1" HorizontalAlignment="Center">
+              <TextBlock Text="؟" Foreground="#62DFFF" FontSize="27" FontWeight="SemiBold" HorizontalAlignment="Center" VerticalAlignment="Center"/>
+            </Border>
+            <TextBlock Text="نصب LAGSHIFT متوقف شود؟" FontSize="20" FontWeight="SemiBold" TextAlignment="Center" Margin="0,17,0,0"/>
+            <TextBlock Text="هنوز چیزی نصب نشده است. اگر خارج شوی، می‌توانی هر زمان دوباره نصب‌کننده را اجرا کنی."
+                       Foreground="#AFC4CE" FontSize="14" LineHeight="23" TextWrapping="Wrap" TextAlignment="Center" Margin="12,8,12,22"/>
+            <StackPanel Orientation="Horizontal" HorizontalAlignment="Center" FlowDirection="RightToLeft">
+              <Button Content="ادامه نصب" Style="{StaticResource PrimaryButton}" MinWidth="142" Click="ContinueSetup_Click"/>
+              <Button Content="خروج بدون نصب" Style="{StaticResource GhostButton}" MinWidth="142" Click="ConfirmExit_Click"/>
+            </StackPanel>
+          </StackPanel>
+        </Border>
+      </Grid>
+    </Grid>
+  </Border>
+</Window>

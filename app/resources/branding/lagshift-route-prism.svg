@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" role="img" aria-label="LAGSHIFT Route Prism">
+  <rect width="512" height="512" rx="112" fill="#050A0E"/>
+  <g fill="none" stroke-linecap="round" stroke-linejoin="round">
+    <path d="M58 154h118l85 82" stroke="#20D9F5" stroke-width="38"/>
+    <path d="M58 256h203" stroke="#20D9F5" stroke-width="38"/>
+    <path d="M58 358h118l85-82" stroke="#20D9F5" stroke-width="38"/>
+    <path d="M250 67l118 76v56M250 445l118-76v-56" stroke="#F2FBFF" stroke-width="28"/>
+    <path d="M261 256h199" stroke="#8A38F5" stroke-width="38"/>
+  </g>
+</svg>

@@ -1,0 +1,28 @@
+__pycache__/
+*.py[cod]
+*.log
+.pytest_cache/
+.coverage
+build/
+dist/
+*.spec
+!LAGSHIFT.spec
+.venv/
+.venv*/
+venv/
+**/bin/
+**/obj/
+.qa-*/
+
+# Runtime state is written to %APPDATA%\LAGSHIFT, never to the repository.
+xray_config.json
+sing-box_config.json
+
+# Legacy tunnel engines and routing databases are never published with the
+# public LAGSHIFT source/release surface.
+xray.exe
+wintun.dll
+geoip.dat
+geosite.dat
+xray_no_window.ps1
+xray_no_window.vbs
