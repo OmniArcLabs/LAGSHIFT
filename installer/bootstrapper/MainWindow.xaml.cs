@@ -234,6 +234,7 @@ public partial class MainWindow : Window
             }
 
             if (process.ExitCode != 0) throw new InvalidOperationException($"نصب با کد {process.ExitCode} متوقف شد.");
+            VerifyInstalledPayload(installPath);
 
             SetInstallProgress(100);
             if (MuteInstallerCheck.IsChecked != true) SystemSounds.Asterisk.Play();
@@ -248,6 +249,7 @@ public partial class MainWindow : Window
             {
                 try
                 {
+                    DeleteKnownPayload(installPath);
                     CopyDirectory(backupPath, installPath, overwrite: true);
                     rollbackMessage = "\nنسخه قبلی از نقطه بازگشت محلی بازیابی شد.";
                 }
@@ -291,6 +293,28 @@ public partial class MainWindow : Window
             if ((directory.Attributes & FileAttributes.ReparsePoint) != 0) continue;
             CopyDirectory(directory.FullName, Path.Combine(destination, directory.Name), overwrite);
         }
+    }
+
+    private static void DeleteKnownPayload(string installPath)
+    {
+        var runtime = Path.Combine(installPath, "_internal");
+        if (Directory.Exists(runtime)) Directory.Delete(runtime, recursive: true);
+        var executable = Path.Combine(installPath, "LAGSHIFT.exe");
+        if (File.Exists(executable)) File.Delete(executable);
+    }
+
+    private static void VerifyInstalledPayload(string installPath)
+    {
+        var required = new[]
+        {
+            Path.Combine(installPath, "LAGSHIFT.exe"),
+            Path.Combine(installPath, "_internal", "PySide6", "QtCore.pyd"),
+            Path.Combine(installPath, "_internal", "PySide6", "Qt6Core.dll"),
+            Path.Combine(installPath, "_internal", "shiboken6", "shiboken6.abi3.dll"),
+            Path.Combine(installPath, "_internal", "python312.dll")
+        };
+        if (required.Any(path => !File.Exists(path)))
+            throw new InvalidOperationException("مجموعه اجرایی Qt/Python کامل نصب نشد.");
     }
 
     private static async Task ExtractEngineAsync(string path)

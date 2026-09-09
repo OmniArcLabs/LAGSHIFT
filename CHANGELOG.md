@@ -9,6 +9,20 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 No public changes yet. Development is feature-frozen while 1.0 receives
 multi-device and multi-network validation.
 
+## [1.0.3] - 2026-09-09
+
+### Fixed
+
+- Upgrades replace the packaged Qt/Python runtime as one tested unit, preventing
+  a first-launch DLL mismatch after an in-app update.
+- Failed installs remove a partial runtime before restoring the local rollback
+  copy, so old and new DLL generations cannot be mixed.
+
+### Security
+
+- Release builds now fail unless they use the pinned Python 3.12, PySide6 6.8.3,
+  and shiboken6 6.8.3 toolchain.
+
 ## [1.0.2] - 2026-09-09
 
 ### Fixed
@@ -72,7 +86,8 @@ multi-device and multi-network validation.
 - GameLink relay, public backend, remote geography, anonymous radar, and remote
   bandwidth tests are disabled in the public build.
 
-[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.2...HEAD
+[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.3...HEAD
+[1.0.3]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.0

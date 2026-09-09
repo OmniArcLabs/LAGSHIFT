@@ -1,5 +1,5 @@
 #define MyAppName "LAGSHIFT"
-#define MyAppVersion "1.0.2"
+#define MyAppVersion "1.0.3"
 #define MyAppPublisher "OMNIARC"
 #define MyAppExeName "LAGSHIFT.exe"
 #define BuildSource "E:\LAGSHIFT-Builds\public-rc\dist\LAGSHIFT"
@@ -33,13 +33,13 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #ifdef BootstrapEngine
 OutputDir=E:\LAGSHIFT-Builds\engine
-OutputBaseFilename=LAGSHIFT-1.0.2-Engine
+OutputBaseFilename=LAGSHIFT-1.0.3-Engine
 #else
 OutputDir=E:\LAGSHIFT-Builds\public-rc\installer
 #ifdef QaBuild
-OutputBaseFilename=LAGSHIFT-1.0.2-QA-Setup
+OutputBaseFilename=LAGSHIFT-1.0.3-QA-Setup
 #else
-OutputBaseFilename=LAGSHIFT-1.0.2-Setup
+OutputBaseFilename=LAGSHIFT-1.0.3-Setup
 #endif
 #endif
 SetupIconFile=..\app\resources\branding\lagshift.ico
@@ -68,6 +68,13 @@ Name: "desktopicon"; Description: "ساخت میانبر روی دسکتاپ"; G
 
 [Files]
 Source: "{#BuildSource}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs notimestamp
+
+; Runtime DLLs are one tested unit. Remove only the previous application
+; payload before copying the new one so an upgrade can never mix Qt/Python
+; generations. User settings live in AppData and are deliberately untouched.
+[InstallDelete]
+Type: filesandordirs; Name: "{app}\_internal"
+Type: files; Name: "{app}\{#MyAppExeName}"
 
 [Dirs]
 Name: "{app}"; Permissions: users-readexec

@@ -620,6 +620,29 @@ class ProductFoundationTests(unittest.TestCase):
         self.assertNotIn("{userappdata}", script.lower())
         self.assertNotIn("{localappdata}", script.lower())
 
+    def test_upgrade_replaces_runtime_as_one_unit_and_keeps_rollback(self):
+        root = Path(__file__).resolve().parents[1]
+        inno = (root / "installer" / "LAGSHIFT.iss").read_text(encoding="utf-8")
+        wrapper = (root / "installer" / "bootstrapper" / "MainWindow.xaml.cs").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn('[InstallDelete]', inno)
+        self.assertIn('Name: "{app}\\_internal"', inno)
+        self.assertIn('Name: "{app}\\{#MyAppExeName}"', inno)
+        self.assertNotIn('{userappdata}', inno.lower())
+        self.assertIn('VerifyInstalledPayload(installPath)', wrapper)
+        self.assertIn('DeleteKnownPayload(installPath)', wrapper)
+        self.assertLess(
+            wrapper.index('DeleteKnownPayload(installPath)'),
+            wrapper.index('CopyDirectory(backupPath, installPath, overwrite: true)'),
+        )
+
+    def test_release_build_enforces_pinned_python_and_qt(self):
+        script = (Path(__file__).resolve().parents[1] / "build.ps1").read_text(encoding="utf-8")
+        self.assertIn("sys.version_info[:2] == (3, 12)", script)
+        self.assertIn("PySide6.__version__ == '6.8.3'", script)
+        self.assertIn("shiboken6.__version__ == '6.8.3'", script)
+
     def test_signed_release_pipeline_signs_inner_layers_before_packaging(self):
         script = (Path(__file__).resolve().parents[1] / "build-installer.ps1").read_text(
             encoding="utf-8"

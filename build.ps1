@@ -19,6 +19,10 @@ if (-not (Test-Path -LiteralPath $projectPython)) {
 if (-not (Test-Path -LiteralPath $projectPython)) {
     $projectPython = 'python'
 }
+& $projectPython -c "import sys, PySide6, shiboken6; assert sys.version_info[:2] == (3, 12), 'Release Python must be 3.12'; assert PySide6.__version__ == '6.8.3', 'PySide6 must be 6.8.3'; assert shiboken6.__version__ == '6.8.3', 'shiboken6 must be 6.8.3'"
+if ($LASTEXITCODE -ne 0) {
+    throw 'Release dependency versions do not match the pinned runtime.'
+}
 & $projectPython -m unittest discover -s tests -v
 if ($LASTEXITCODE -ne 0) {
     throw "Test suite failed with exit code $LASTEXITCODE"

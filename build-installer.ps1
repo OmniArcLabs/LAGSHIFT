@@ -6,7 +6,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
-$version = '1.0.2'
+$version = '1.0.3'
 
 & .\build.ps1 -PythonPath $PythonPath
 
