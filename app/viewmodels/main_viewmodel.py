@@ -78,6 +78,7 @@ class MainViewModel(QObject):
     diagnostic_report_ready = Signal(str)
     traffic_usage_updated = Signal(int, int)
     update_check_ready = Signal(dict)
+    update_download_progress = Signal(int, int)
     update_download_ready = Signal(str, str)
     app_catalog_changed = Signal(list)
     app_access_progress = Signal(dict)
@@ -124,10 +125,12 @@ class MainViewModel(QObject):
         self._route_bad_samples = 0
         self._app_access_session = {}
         self._app_access_generation = 0
+        self._app_access_worker = None
         self._app_catalog_installed = []
         self._app_scan_busy = False
         self._connection_state = connection_state_service.ConnectionState()
         self._connection_generation = 0
+        self._update_download_cancel = threading.Event()
         self._game_session_summary = {}
         self._match_route_locked = False
 
@@ -989,7 +992,18 @@ class MainViewModel(QObject):
                     "route_dna": route_dna_service.enrich_probe(route_context, last_probe),
                 })
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._app_access_worker = threading.Thread(
+            target=worker, daemon=True, name=f"app-access-{operation_generation}"
+        )
+        self._app_access_worker.start()
+
+    def wait_for_app_access(self, timeout: float = 5.0) -> bool:
+        """Wait briefly for the current App Access worker to terminate."""
+        worker = self._app_access_worker
+        if worker is None or worker is threading.current_thread():
+            return True
+        worker.join(max(0.0, float(timeout)))
+        return not worker.is_alive()
 
     def cancel_app_access(self):
         if not self._busy:
@@ -1053,7 +1067,10 @@ class MainViewModel(QObject):
             except Exception as exc:
                 self._app_access_completed.emit({"operation": "stop", "ok": False, "error": str(exc)[:500]})
 
-        threading.Thread(target=worker, daemon=True).start()
+        self._app_access_worker = threading.Thread(
+            target=worker, daemon=True, name="app-access-restore"
+        )
+        self._app_access_worker.start()
 
     def _on_app_access_completed(self, result: dict):
         self._busy = False
@@ -1189,19 +1206,40 @@ class MainViewModel(QObject):
                 "", "بازی در حال اجراست؛ دانلود آپدیت تا پایان Session قفل شد"
             )
             return
+        self._update_download_cancel.clear()
+
         def worker():
             try:
-                path = update_service.download_verified_installer(manifest)
+                path = update_service.download_verified_installer(
+                    manifest,
+                    public_key_b64=UPDATE_PUBLIC_KEY_B64,
+                    progress=lambda received, total: self.update_download_progress.emit(
+                        int(received), int(total)
+                    ),
+                    cancelled=self._update_download_cancel.is_set,
+                )
                 self.update_download_ready.emit(str(path), "")
             except Exception as exc:
                 self.update_download_ready.emit("", str(exc)[:400])
 
         threading.Thread(target=worker, daemon=True).start()
 
-    def install_downloaded_update(self, path: str) -> tuple[bool, str]:
+    def cancel_update_download(self):
+        self._update_download_cancel.set()
+
+    def downloaded_update_has_authenticode(self, path: str) -> bool:
+        return update_service.has_valid_authenticode(Path(path))
+
+    def install_downloaded_update(
+        self, path: str, manifest: dict, allow_unsigned: bool = False
+    ) -> tuple[bool, str]:
         if self._optimizing_game:
             return False, "بازی در حال اجراست؛ نصب آپدیت تا پایان Session قفل شد"
-        return update_service.launch_verified_installer(Path(path))
+        return update_service.launch_verified_installer(
+            Path(path), manifest,
+            public_key_b64=UPDATE_PUBLIC_KEY_B64,
+            allow_unsigned=allow_unsigned,
+        )
 
     def probe_game_server(self, game, phase: str = "current"):
         """Measure an endpoint observed on the game process without blocking the UI."""

@@ -1,7 +1,7 @@
 VSVersionInfo(
   ffi=FixedFileInfo(
-    filevers=(1, 0, 0, 0),
-    prodvers=(1, 0, 0, 0),
+    filevers=(1, 0, 1, 0),
+    prodvers=(1, 0, 1, 0),
     mask=0x3f,
     flags=0x0,
     OS=0x40004,
@@ -16,12 +16,12 @@ VSVersionInfo(
         [
           StringStruct(u'CompanyName', u'OMNIARC'),
           StringStruct(u'FileDescription', u'LAGSHIFT Game Connection Optimizer'),
-          StringStruct(u'FileVersion', u'1.0.0'),
+          StringStruct(u'FileVersion', u'1.0.1'),
           StringStruct(u'InternalName', u'LAGSHIFT'),
           StringStruct(u'LegalCopyright', u'Copyright 2026 OMNIARC. All rights reserved.'),
           StringStruct(u'OriginalFilename', u'LAGSHIFT.exe'),
           StringStruct(u'ProductName', u'LAGSHIFT'),
-          StringStruct(u'ProductVersion', u'1.0.0')
+          StringStruct(u'ProductVersion', u'1.0.1')
         ]
       )
     ]),

@@ -20,7 +20,9 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("installer", type=Path)
     parser.add_argument("--version", required=True)
+    parser.add_argument("--channel", choices=("stable", "beta"), default="stable")
     parser.add_argument("--url", required=True)
+    parser.add_argument("--release-url", default="")
     parser.add_argument("--output", type=Path, required=True)
     parser.add_argument("--notes", default="")
     parser.add_argument("--mandatory", action="store_true")
@@ -31,6 +33,8 @@ def main() -> int:
         raise SystemExit("A Windows installer file is required")
     _version_tuple(args.version)
     _validate_https_url(args.url)
+    if args.release_url:
+        _validate_https_url(args.release_url)
     encoded_key = os.environ.get("LAGSHIFT_UPDATE_PRIVATE_KEY_B64", "")
     if not encoded_key:
         raise SystemExit("LAGSHIFT_UPDATE_PRIVATE_KEY_B64 is not set")
@@ -47,13 +51,15 @@ def main() -> int:
             digest.update(chunk)
     document = {
         "version": args.version,
-        "channel": "stable",
+        "channel": args.channel,
         "url": args.url,
         "sha256": digest.hexdigest(),
         "size": installer.stat().st_size,
         "notes": args.notes[:4000],
         "mandatory": args.mandatory,
     }
+    if args.release_url:
+        document["release_url"] = args.release_url
     document["signature"] = base64.b64encode(
         private_key.sign(_canonical_payload(document))
     ).decode("ascii")

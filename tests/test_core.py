@@ -441,6 +441,8 @@ class RouteDnaTests(unittest.TestCase):
             while not results and time.time() < deadline:
                 qt_app.processEvents()
                 time.sleep(0.01)
+            self.assertTrue(vm.wait_for_app_access())
+            qt_app.processEvents()
             self.assertTrue(results)
             self.assertTrue(results[-1]["ok"])
             self.assertEqual(results[-1]["route"], "warp")
@@ -500,6 +502,8 @@ class RouteDnaTests(unittest.TestCase):
             while not results and time.time() < deadline:
                 qt_app.processEvents()
                 time.sleep(0.01)
+            self.assertTrue(vm.wait_for_app_access())
+            qt_app.processEvents()
             self.assertTrue(results)
             self.assertTrue(results[-1]["ok"])
             self.assertEqual(results[-1]["route"], "dns")
@@ -557,6 +561,8 @@ class RouteDnaTests(unittest.TestCase):
             while not results and time.time() < deadline:
                 qt_app.processEvents()
                 time.sleep(0.01)
+            self.assertTrue(vm.wait_for_app_access())
+            qt_app.processEvents()
             self.assertTrue(results[-1]["ok"])
             self.assertEqual(results[-1]["dns_name"], "Second")
             select_dns.assert_called_once()
@@ -1443,6 +1449,19 @@ class UpdateTests(unittest.TestCase):
         verified = update_service.verify_manifest(document, public_key)
         self.assertEqual(verified["version"], "1.1.0")
 
+    def test_published_update_manifests_match_embedded_trust_key(self):
+        root = Path(__file__).resolve().parents[1]
+        for channel in ("stable", "beta"):
+            document = json.loads(
+                (root / f"update-manifest-{channel}.json").read_text(encoding="utf-8")
+            )
+            verified = update_service.verify_manifest(
+                document, app_info.UPDATE_PUBLIC_KEY_B64, channel
+            )
+            self.assertEqual(verified["version"], app_info.APP_VERSION)
+            self.assertEqual(verified["channel"], channel)
+            self.assertIn("/releases/download/v1.0.1/", verified["url"])
+
     def test_tampered_update_manifest_is_rejected(self):
         document, public_key = self._signed_manifest()
         document["size"] += 1
@@ -1499,6 +1518,77 @@ class UpdateTests(unittest.TestCase):
             self.assertEqual(result.read_bytes(), payload)
             request = opener.open.call_args.args[0]
             self.assertEqual(request.get_header("Range"), "bytes=3-")
+
+    def test_verified_existing_installer_is_reused_without_network(self):
+        payload = b"already-downloaded"
+        manifest = {
+            "version": "1.1.0", "url": "https://updates.example.com/setup.exe",
+            "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+        with tempfile.TemporaryDirectory() as folder, patch(
+            "app.services.update_service._opener"
+        ) as opener:
+            destination = Path(folder)
+            target = destination / "LAGSHIFT-1.1.0-Setup.exe"
+            target.write_bytes(payload)
+            progress = MagicMock()
+            result = update_service.download_verified_installer(
+                manifest, destination, progress=progress
+            )
+            self.assertEqual(result, target)
+            opener.assert_not_called()
+            progress.assert_called_with(len(payload), len(payload))
+
+    def test_user_cancel_keeps_bounded_partial_download(self):
+        payload = b"abcdef"
+        manifest = {
+            "version": "1.1.0", "url": "https://updates.example.com/setup.exe",
+            "size": len(payload), "sha256": hashlib.sha256(payload).hexdigest(),
+        }
+
+        class Response:
+            status = 200
+            headers = {}
+            def __enter__(self):
+                return self
+            def __exit__(self, *_args):
+                return False
+            def read(self, _size):
+                return payload
+
+        opener = MagicMock()
+        opener.open.return_value = Response()
+        with tempfile.TemporaryDirectory() as folder, patch(
+            "app.services.update_service._opener", return_value=opener
+        ):
+            destination = Path(folder)
+            with self.assertRaises(update_service.UpdateDownloadCancelled):
+                update_service.download_verified_installer(
+                    manifest, destination, cancelled=lambda: True
+                )
+            self.assertTrue(
+                (destination / "LAGSHIFT-1.1.0-Setup.part").exists()
+            )
+
+    @patch("app.services.update_service.subprocess.Popen")
+    @patch("app.services.update_service.has_valid_authenticode", return_value=False)
+    @patch(
+        "app.services.update_service.verify_downloaded_installer",
+        return_value=(True, "ok"),
+    )
+    def test_unsigned_installer_requires_explicit_consent(
+        self, _verify, _authenticode, popen
+    ):
+        path = Path("LAGSHIFT-1.1.0-Setup.exe")
+        manifest = {"version": "1.1.0"}
+        ok, _message = update_service.launch_verified_installer(path, manifest)
+        self.assertFalse(ok)
+        popen.assert_not_called()
+        ok, _message = update_service.launch_verified_installer(
+            path, manifest, allow_unsigned=True
+        )
+        self.assertTrue(ok)
+        popen.assert_called_once()
 
 
 class AppProfileCatalogTests(unittest.TestCase):

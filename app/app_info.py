@@ -2,8 +2,8 @@
 
 APP_NAME = "LAGSHIFT"
 APP_DISPLAY_NAME = "LAGSHIFT — لگ‌شیفت"
-APP_VERSION = "1.0.0"
-BUILD_NUMBER = "1000"
+APP_VERSION = "1.0.1"
+BUILD_NUMBER = "1001"
 BRAND_PUBLISHER = "OMNIARC"
 # These values are intentionally empty until the owner approves public/legal
 # identity. Release tooling must fail the Stable gate rather than invent them.
@@ -30,10 +30,14 @@ ALLOW_LEGACY_WARP_REGISTRATION = EDITION == "developer"
 ALLOW_GAMELINK = EDITION == "developer"
 ALLOW_REMOTE_BACKEND = EDITION == "developer"
 
-# Filled by the release pipeline after the production update host and offline
-# Ed25519 signing key are created. Empty values intentionally disable networking.
-UPDATE_MANIFEST_URL = ""
-UPDATE_PUBLIC_KEY_B64 = ""
+# Signed static manifests are served from the public repository. The private
+# Ed25519 key is kept offline; only this public verification key ships.
+UPDATE_MANIFEST_URLS = {
+    "stable": "https://raw.githubusercontent.com/OmniArcLabs/LAGSHIFT/main/update-manifest-stable.json",
+    "beta": "https://raw.githubusercontent.com/OmniArcLabs/LAGSHIFT/main/update-manifest-beta.json",
+}
+UPDATE_MANIFEST_URL = UPDATE_MANIFEST_URLS["stable"]
+UPDATE_PUBLIC_KEY_B64 = "rxoKwmIzSFhVzor4nRTNyJk0+PjR5M066MEKA/onKh4="
 UPDATE_CHANNEL = "stable"
 
 # Optional signed App Access policy catalog. A static HTTPS file on Cloudflare

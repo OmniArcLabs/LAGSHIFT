@@ -1,14 +1,19 @@
 param(
     [string]$CertificateThumbprint = '',
-    [string]$TimestampUrl = 'http://timestamp.digicert.com'
+    [string]$TimestampUrl = 'http://timestamp.digicert.com',
+    [string]$PythonPath = ''
 )
 
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
+$version = '1.0.1'
 
-& .\build.ps1
+& .\build.ps1 -PythonPath $PythonPath
 
-$projectPython = Join-Path $PSScriptRoot '.venv312\Scripts\python.exe'
+$projectPython = $PythonPath
+if (-not $projectPython) {
+    $projectPython = Join-Path $PSScriptRoot '.venv312\Scripts\python.exe'
+}
 if (-not (Test-Path -LiteralPath $projectPython)) {
     $projectPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 }
@@ -41,18 +46,14 @@ if ($LASTEXITCODE -ne 0) {
     throw "Installer engine compilation failed with exit code $LASTEXITCODE"
 }
 
-$engineInstaller = 'E:\LAGSHIFT-Builds\engine\LAGSHIFT-1.0.0-Engine.exe'
+$engineInstaller = "E:\LAGSHIFT-Builds\engine\LAGSHIFT-$version-Engine.exe"
 if ($CertificateThumbprint) {
     & '.\tools\sign_windows_release.ps1' -CertificateThumbprint $CertificateThumbprint `
         -TimestampUrl $TimestampUrl -Files @($engineInstaller)
 }
 
 $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
-$legacyInstaller = Join-Path $installerDir 'LAGSHIFT-1.0.0-Legacy-Setup.exe'
-$publicInstaller = Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup.exe'
-if ((Test-Path -LiteralPath $publicInstaller) -and -not (Test-Path -LiteralPath $legacyInstaller)) {
-    Copy-Item -LiteralPath $publicInstaller -Destination $legacyInstaller
-}
+$publicInstaller = Join-Path $installerDir "LAGSHIFT-$version-Setup.exe"
 
 $publishDir = 'E:\LAGSHIFT-Builds\bootstrapper-publish'
 $intermediateDir = 'E:\LAGSHIFT-Builds\bootstrapper-obj\'
@@ -64,12 +65,12 @@ if ($LASTEXITCODE -ne 0) {
     throw "Custom installer compilation failed with exit code $LASTEXITCODE"
 }
 
-$bootstrapper = Join-Path $publishDir 'LAGSHIFT-1.0.0-Setup.exe'
+$bootstrapper = Join-Path $publishDir "LAGSHIFT-$version-Setup.exe"
 if (-not (Test-Path -LiteralPath $bootstrapper)) {
     throw 'Custom installer output was not created.'
 }
 Copy-Item -LiteralPath $bootstrapper -Destination $publicInstaller -Force
-Copy-Item -LiteralPath $bootstrapper -Destination (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-SelfContained.exe') -Force
+Copy-Item -LiteralPath $bootstrapper -Destination (Join-Path $installerDir "LAGSHIFT-$version-Setup-SelfContained.exe") -Force
 
 $lightIntermediateDir = 'E:\LAGSHIFT-Builds\bootstrapper-light-obj\'
 $lightBinaryDir = 'E:\LAGSHIFT-Builds\bootstrapper-light-bin\'
@@ -78,23 +79,22 @@ dotnet build '.\installer\bootstrapper\Lagshift.Setup.Framework.csproj' -c Relea
 if ($LASTEXITCODE -ne 0) {
     throw "Lightweight installer compilation failed with exit code $LASTEXITCODE"
 }
-$lightInstaller = Join-Path $lightBinaryDir 'Release\net48\LAGSHIFT-1.0.0-Setup-Light.exe'
-Copy-Item -LiteralPath $lightInstaller -Destination (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-Light.exe') -Force
+$lightInstaller = Join-Path $lightBinaryDir "Release\net48\LAGSHIFT-$version-Setup-Light.exe"
+Copy-Item -LiteralPath $lightInstaller -Destination (Join-Path $installerDir "LAGSHIFT-$version-Setup-Light.exe") -Force
 
 if ($CertificateThumbprint) {
     & '.\tools\sign_windows_release.ps1' -CertificateThumbprint $CertificateThumbprint `
         -TimestampUrl $TimestampUrl -Files @(
             $publicInstaller,
-            (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-SelfContained.exe'),
-            (Join-Path $installerDir 'LAGSHIFT-1.0.0-Setup-Light.exe')
+            (Join-Path $installerDir "LAGSHIFT-$version-Setup-SelfContained.exe"),
+            (Join-Path $installerDir "LAGSHIFT-$version-Setup-Light.exe")
         )
 }
 
-& '.\tools\write_release_checksums.ps1' -InstallerDirectory $installerDir
+& '.\tools\write_release_checksums.ps1' -InstallerDirectory $installerDir -Version $version
 Copy-Item -LiteralPath '.\SHA256SUMS.txt' `
     -Destination (Join-Path $installerDir 'SHA256SUMS.txt') -Force
 
-Write-Host 'Custom installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup.exe'
-Write-Host 'Lightweight installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup-Light.exe'
-Write-Host 'Self-contained installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Setup-SelfContained.exe'
-Write-Host 'Previous native installer preserved as: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-1.0.0-Legacy-Setup.exe'
+Write-Host "Custom installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-$version-Setup.exe"
+Write-Host "Lightweight installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-$version-Setup-Light.exe"
+Write-Host "Self-contained installer ready: E:\LAGSHIFT-Builds\public-rc\installer\LAGSHIFT-$version-Setup-SelfContained.exe"

@@ -1,12 +1,13 @@
 param(
     [string]$InstallerDirectory = 'E:\LAGSHIFT-Builds\public-rc\installer',
-    [string]$OutputFile = (Join-Path $PSScriptRoot '..\SHA256SUMS.txt')
+    [string]$OutputFile = (Join-Path $PSScriptRoot '..\SHA256SUMS.txt'),
+    [string]$Version = '1.0.1'
 )
 
 $ErrorActionPreference = 'Stop'
 $names = @(
-    'LAGSHIFT-1.0.0-Setup.exe',
-    'LAGSHIFT-1.0.0-Setup-Light.exe'
+    "LAGSHIFT-$Version-Setup.exe",
+    "LAGSHIFT-$Version-Setup-Light.exe"
 )
 
 $lines = foreach ($name in $names) {

@@ -14,7 +14,7 @@ from PySide6.QtWidgets import (
     QStatusBar, QCheckBox, QTabWidget, QLineEdit, QMessageBox,
     QSystemTrayIcon, QMenu, QGraphicsOpacityEffect, QDialog, QDialogButtonBox,
     QScrollArea, QFrame, QGridLayout, QProgressBar, QFileDialog, QSpinBox,
-    QPlainTextEdit
+    QPlainTextEdit, QApplication
 )
 
 from app.viewmodels.main_viewmodel import MainViewModel
@@ -35,6 +35,7 @@ from app.views.game_detection_toast import GameDetectionToast
 from app.views.brand import RoutePrismWidget, make_app_icon
 from app.views.terms_dialog import TermsDialog
 from app.views.app_access import AppAccessWidget
+from app.views.update_dialog import UpdateDialog
 
 
 DARK_STYLE = """
@@ -444,6 +445,8 @@ class MainWindow(QMainWindow):
         self._official_warp_owned = False
         self._warp_operation_busy = False
         self._latest_dns_quality = {}
+        self._update_dialog = None
+        self._pending_update_path = ""
 
         self.setWindowTitle(APP_DISPLAY_NAME)
         self.setWindowIcon(self.app_icon)
@@ -1555,6 +1558,7 @@ class MainWindow(QMainWindow):
         self.vm.diagnostic_report_ready.connect(self._on_diagnostic_report_ready)
         self.vm.traffic_usage_updated.connect(self._on_traffic_usage_updated)
         self.vm.update_check_ready.connect(self._on_update_check_ready)
+        self.vm.update_download_progress.connect(self._on_update_download_progress)
         self.vm.update_download_ready.connect(self._on_update_download_ready)
 
         self.refresh_btn.clicked.connect(self.vm.refresh_adapters)
@@ -1860,10 +1864,25 @@ class MainWindow(QMainWindow):
         self.check_update_btn.setEnabled(True)
         self.check_update_btn.setText("🔄 بررسی آپدیت")
         self.update_status_label.setText(result.get("message", "نتیجه‌ای دریافت نشد"))
-        self._pending_update_manifest = result.get("manifest") or {}
+        previous_manifest = getattr(self, "_pending_update_manifest", {})
+        next_manifest = result.get("manifest") or {}
+        if (
+            previous_manifest.get("version") != next_manifest.get("version")
+            or previous_manifest.get("sha256") != next_manifest.get("sha256")
+        ):
+            self._pending_update_path = ""
+        self._pending_update_manifest = next_manifest
         self.download_update_btn.setVisible(bool(result.get("available")))
         if result.get("available"):
+            self.download_update_btn.setText("مشاهده و نصب آپدیت")
             self.banner.show_message(result["message"], "success", 7000)
+            if self.tray_icon.isVisible():
+                self.tray_icon.showMessage(
+                    "آپدیت LAGSHIFT آماده است",
+                    result["message"],
+                    QSystemTrayIcon.Information,
+                    7000,
+                )
         elif result.get("manual"):
             level = "info" if not result.get("configured") else "error"
             self.banner.show_message(result.get("message", "بررسی ناموفق بود"), level, 6500)
@@ -1872,27 +1891,78 @@ class MainWindow(QMainWindow):
         manifest = getattr(self, "_pending_update_manifest", {})
         if not manifest:
             return
+        if self._update_dialog is not None:
+            self._update_dialog.close()
+        dialog = UpdateDialog(manifest, self)
+        dialog.download_requested.connect(self._begin_update_download)
+        dialog.cancel_requested.connect(self.vm.cancel_update_download)
+        dialog.install_requested.connect(self._install_pending_update)
+        dialog.finished.connect(self._update_dialog_closed)
+        self._update_dialog = dialog
+        if self._pending_update_path:
+            path = Path(self._pending_update_path)
+            if path.is_file():
+                dialog.set_ready(self.vm.downloaded_update_has_authenticode(str(path)))
+        dialog.show()
+        dialog.raise_()
+        dialog.activateWindow()
+
+    def _begin_update_download(self):
+        manifest = getattr(self, "_pending_update_manifest", {})
+        if not manifest:
+            return
         self.download_update_btn.setEnabled(False)
-        self.download_update_btn.setText("در حال دریافت و تطبیق هش…")
+        self.download_update_btn.setText("در حال دریافت آپدیت…")
         self.vm.download_update(manifest)
+
+    def _on_update_download_progress(self, received: int, total: int):
+        if self._update_dialog is not None:
+            self._update_dialog.set_progress(received, total)
 
     def _on_update_download_ready(self, path: str, error: str):
         self.download_update_btn.setEnabled(True)
-        self.download_update_btn.setText("⬇ دریافت نسخه تأییدشده")
+        self.download_update_btn.setText("مشاهده و نصب آپدیت")
         if error or not path:
-            self.banner.show_message(f"دانلود امن متوقف شد: {error}", "error", 7000)
+            if self._update_dialog is not None:
+                if "ادامهٔ امن" in error:
+                    self._update_dialog.set_paused()
+                else:
+                    self._update_dialog.set_error(error)
+            else:
+                self.banner.show_message(f"دانلود امن متوقف شد: {error}", "error", 7000)
             return
-        answer = QMessageBox.question(
-            self, "آپدیت آماده نصب است",
-            "فایل با هش و امضای مانیفست تأیید شد. اکنون امضای ناشر ویندوز "
-            "بررسی و نصب‌کننده اجرا شود؟",
-            QMessageBox.Yes | QMessageBox.No, QMessageBox.Yes,
+        self._pending_update_path = path
+        self.update_status_label.setText("آپدیت دانلود و تأیید شد؛ آمادهٔ نصب است")
+        signed = self.vm.downloaded_update_has_authenticode(path)
+        if self._update_dialog is not None:
+            self._update_dialog.set_ready(signed)
+        else:
+            self.banner.show_message("آپدیت دانلود و برای نصب آماده شد", "success", 7000)
+
+    def _install_pending_update(self, allow_unsigned: bool):
+        path = self._pending_update_path
+        manifest = getattr(self, "_pending_update_manifest", {})
+        if not path or not manifest:
+            if self._update_dialog is not None:
+                self._update_dialog.restore_ready_after_install_error(
+                    "فایل یا مانیفست آپدیت در دسترس نیست؛ دانلود را دوباره انجام بده."
+                )
+            return
+        ok, message = self.vm.install_downloaded_update(
+            path, manifest, allow_unsigned=allow_unsigned
         )
-        if answer != QMessageBox.Yes:
-            self.update_status_label.setText("آپدیت دانلود و برای نصب بعدی نگهداری شد")
-            return
-        ok, message = self.vm.install_downloaded_update(path)
         self.banner.show_message(message, "success" if ok else "error", 7000)
+        if not ok:
+            if self._update_dialog is not None:
+                self._update_dialog.restore_ready_after_install_error(message)
+            return
+        self.update_status_label.setText("نصب‌کننده اجرا شد؛ LAGSHIFT در حال خروج امن است…")
+        QTimer.singleShot(650, QApplication.quit)
+
+    def _update_dialog_closed(self, _result: int):
+        if self._update_dialog is not None:
+            self._update_dialog.deleteLater()
+        self._update_dialog = None
 
     def play_startup_reveal(self):
         """Brief staggered hand-off from the Route Prism splash into the real UI."""

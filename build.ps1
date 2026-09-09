@@ -1,3 +1,7 @@
+param(
+    [string]$PythonPath = ''
+)
+
 $ErrorActionPreference = 'Stop'
 Set-Location -LiteralPath $PSScriptRoot
 $releaseRoot = 'E:\LAGSHIFT-Builds\public-rc'
@@ -5,7 +9,10 @@ $distPath = Join-Path $releaseRoot 'dist'
 $workPath = Join-Path $releaseRoot 'work'
 New-Item -ItemType Directory -Force -Path $distPath | Out-Null
 New-Item -ItemType Directory -Force -Path $workPath | Out-Null
-$projectPython = Join-Path $PSScriptRoot '.venv312\Scripts\python.exe'
+$projectPython = $PythonPath
+if (-not $projectPython) {
+    $projectPython = Join-Path $PSScriptRoot '.venv312\Scripts\python.exe'
+}
 if (-not (Test-Path -LiteralPath $projectPython)) {
     $projectPython = Join-Path $PSScriptRoot '.venv\Scripts\python.exe'
 }
@@ -13,7 +20,13 @@ if (-not (Test-Path -LiteralPath $projectPython)) {
     $projectPython = 'python'
 }
 & $projectPython -m unittest discover -s tests -v
+if ($LASTEXITCODE -ne 0) {
+    throw "Test suite failed with exit code $LASTEXITCODE"
+}
 & $projectPython -m PyInstaller --noconfirm --clean --distpath $distPath --workpath $workPath LAGSHIFT.spec
+if ($LASTEXITCODE -ne 0) {
+    throw "Application build failed with exit code $LASTEXITCODE"
+}
 $translationsPath = Join-Path $distPath 'LAGSHIFT\_internal\PySide6\translations'
 if (Test-Path -LiteralPath $translationsPath) {
     Get-ChildItem -LiteralPath $translationsPath -Filter '*.qm' -File |

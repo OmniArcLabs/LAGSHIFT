@@ -9,6 +9,23 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 No public changes yet. Development is feature-frozen while 1.0 receives
 multi-device and multi-network validation.
 
+## [1.0.1] - 2026-09-09
+
+### Added
+
+- Automatic background checks against separate signed Stable and Beta manifests.
+- A polished in-app update journey with release notes, progress, pause/resume,
+  retry, and install-and-restart actions.
+- Offline Ed25519 manifest verification plus installer size and SHA-256 checks
+  before and immediately before launch.
+
+### Changed
+
+- Unsigned Authenticode builds now require an explicit, plain-language consent
+  after cryptographic manifest and payload verification.
+- The release build stops immediately when tests or application packaging fail.
+- AppRoute worker lifecycle is deterministic during shutdown and automated QA.
+
 ## [1.0.0] - 2026-09-08
 
 ### Added
@@ -39,5 +56,6 @@ multi-device and multi-network validation.
 - GameLink relay, public backend, remote geography, anonymous radar, and remote
   bandwidth tests are disabled in the public build.
 
-[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.0...HEAD
+[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...HEAD
+[1.0.1]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.0
