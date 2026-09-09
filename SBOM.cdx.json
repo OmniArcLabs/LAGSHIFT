@@ -8,7 +8,7 @@
     "component": {
       "type": "application",
       "name": "LAGSHIFT",
-      "version": "1.0.3",
+      "version": "1.0.4",
       "description": "Windows game and supported-application connection optimizer"
     }
   },

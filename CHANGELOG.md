@@ -9,6 +9,17 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 No public changes yet. Development is feature-frozen while 1.0 receives
 multi-device and multi-network validation.
 
+## [1.0.4] - 2026-09-09
+
+### Fixed
+
+- Replaced fragile banner timeouts with bounded, severity-aware notification
+  lifetimes and a deterministic expiry watchdog.
+- Prevented repeated background messages from extending or reopening an expired
+  notification.
+- Kept the startup reveal animation from replacing the status banner's owned Qt
+  opacity effect, which previously left later messages permanently visible.
+
 ## [1.0.3] - 2026-09-09
 
 ### Fixed
@@ -86,7 +97,8 @@ multi-device and multi-network validation.
 - GameLink relay, public backend, remote geography, anonymous radar, and remote
   bandwidth tests are disabled in the public build.
 
-[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.3...HEAD
+[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.4...HEAD
+[1.0.4]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.0...v1.0.1

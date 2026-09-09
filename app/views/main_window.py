@@ -1978,7 +1978,6 @@ class MainWindow(QMainWindow):
         self._startup_panel_animations = []
         for widget, delay, duration in (
             (self.header_frame, 0, 260),
-            (self.banner, 65, 280),
             (self.tabs, 125, 340),
         ):
             effect = QGraphicsOpacityEffect(widget)
@@ -1993,7 +1992,9 @@ class MainWindow(QMainWindow):
             QTimer.singleShot(delay, animation.start)
 
         def release_effects():
-            for widget in (self.header_frame, self.banner, self.tabs):
+            # StatusBanner owns its opacity effect and lifetime watchdog.  It
+            # must never be replaced by a page-level entrance animation.
+            for widget in (self.header_frame, self.tabs):
                 widget.setGraphicsEffect(None)
             self._startup_panel_animations = []
 

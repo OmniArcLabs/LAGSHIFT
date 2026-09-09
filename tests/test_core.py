@@ -84,6 +84,18 @@ class PackageAclTests(unittest.TestCase):
 
 
 class StatusBannerTests(unittest.TestCase):
+    def test_notification_lifetimes_are_bounded_and_severity_aware(self):
+        short_info = StatusBanner.recommended_duration("پیام کوتاه", "info")
+        long_error = StatusBanner.recommended_duration("خطای طولانی " * 40, "error")
+        self.assertGreater(long_error, short_info)
+        self.assertLessEqual(long_error, 12000)
+        self.assertGreaterEqual(short_info, 2500)
+
+    def test_recent_duplicate_is_not_reshown_after_collapse(self):
+        fingerprint = ("error", "خطای تکراری شبکه")
+        self.assertTrue(StatusBanner.is_recent_duplicate({fingerprint: 30.0}, fingerprint, 10.0))
+        self.assertFalse(StatusBanner.is_recent_duplicate({fingerprint: 30.0}, fingerprint, 30.0))
+
     def test_finished_fade_collapses_banner_and_clears_text(self):
         banner = MagicMock()
         banner._hide_timer.isActive.return_value = False
@@ -109,6 +121,22 @@ class StatusBannerTests(unittest.TestCase):
         StatusBanner._collapse(banner, 3)
         banner.setFixedHeight.assert_not_called()
         banner.clear.assert_not_called()
+
+    def test_repeated_fade_request_does_not_restart_collapse_deadline(self):
+        banner = MagicMock()
+        banner.height.return_value = 42
+        banner._fading_out = True
+        StatusBanner._fade_out(banner)
+        banner._collapse_timer.start.assert_not_called()
+        banner._fade_anim.start.assert_not_called()
+
+    def test_startup_animation_never_replaces_banner_owned_effect(self):
+        source = (Path(__file__).resolve().parents[1] / "app" / "views" / "main_window.py").read_text(
+            encoding="utf-8"
+        )
+        reveal = source.split("def play_startup_reveal", 1)[1].split("def _set_home_state", 1)[0]
+        self.assertNotIn("(self.banner,", reveal)
+        self.assertNotIn("self.header_frame, self.banner, self.tabs", reveal)
 
 
 class AppAccessTests(unittest.TestCase):
