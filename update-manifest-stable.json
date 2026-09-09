@@ -1,11 +1,11 @@
 {
-  "version": "1.0.1",
+  "version": "1.0.2",
   "channel": "stable",
-  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.0.1/LAGSHIFT-1.0.1-Setup.exe",
-  "sha256": "baa1067f14fbf7635d019202349ccc0976d5871a5e60a9b643873d497d9ec958",
-  "size": 112519355,
-  "notes": "آپدیتر امن درون‌برنامه‌ای با دانلود قابل ادامه، کنترل Ed25519 و SHA-256، نمایش شفاف وضعیت و رفع ناپایداری عملیات AppRoute.",
+  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.0.2/LAGSHIFT-1.0.2-Setup-Light.exe",
+  "sha256": "e2aec1a8958b99cbe4c022a51569735f5c77400db99bbe06da529ceec623b7ae",
+  "size": 47270400,
+  "notes": "رفع گیرکردن پیام RouteDNA، حذف پنل قدیمی مسیرهای ذخیره‌شده و حذف چشمک پنجره هنگام بررسی WARP.",
   "mandatory": false,
-  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.1",
-  "signature": "7AtiNqrZDc0NNJipVu0AYiSRNH4aefsZELFz15pVV4L+zY2S3wbsZYrA7+QAaVG7dErCPmTykpzEtvu6+iEvCg=="
+  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.2",
+  "signature": "dkynfKOHcYsX8/GQtJ2xAALn/ZWGQUa9pyn5EQ+Lw0kioUAtqCT5ZcdeXEh+43aPbxB1hdnUreoSGj7l3Nd/Dg=="
 }
