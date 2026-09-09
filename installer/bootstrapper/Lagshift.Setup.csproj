@@ -8,9 +8,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationIcon>..\..\app\resources\branding\lagshift.ico</ApplicationIcon>
     <ApplicationManifest>app.manifest</ApplicationManifest>
-    <AssemblyName>LAGSHIFT-1.0.1-Setup</AssemblyName>
+    <AssemblyName>LAGSHIFT-1.0.2-Setup</AssemblyName>
     <RootNamespace>Lagshift.Setup</RootNamespace>
-    <Version>1.0.1.0</Version>
+    <Version>1.0.2.0</Version>
     <Company>OMNIARC</Company>
     <Authors>OMNIARC</Authors>
     <Product>LAGSHIFT Secure Setup</Product>
@@ -29,6 +29,6 @@
   <ItemGroup>
     <Resource Include="..\assets\lagshift-installer-background.png" Link="Assets\installer-background.png" />
     <Resource Include="..\..\app\resources\branding\lagshift.png" Link="Assets\lagshift.png" />
-    <EmbeddedResource Include="E:\LAGSHIFT-Builds\engine\LAGSHIFT-1.0.1-Engine.exe" LogicalName="Lagshift.Setup.Payload.Engine.exe" />
+    <EmbeddedResource Include="E:\LAGSHIFT-Builds\engine\LAGSHIFT-1.0.2-Engine.exe" LogicalName="Lagshift.Setup.Payload.Engine.exe" />
   </ItemGroup>
 </Project>

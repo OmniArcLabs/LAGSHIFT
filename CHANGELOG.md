@@ -9,6 +9,22 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 No public changes yet. Development is feature-frozen while 1.0 receives
 multi-device and multi-network validation.
 
+## [1.0.2] - 2026-09-09
+
+### Fixed
+
+- RouteDNA diagnostics now always reach a clear terminal state and recover the
+  test button after failure or a bounded timeout.
+- The public interface no longer exposes the obsolete saved-tunnel panel after
+  custom tunnel support was removed.
+- Cloudflare signature inspection now runs without a visible PowerShell/taskbar
+  flash on Windows.
+
+### Changed
+
+- The WARP page now explains that Cloudflare exposes connection modes, not a
+  selectable list of WARP servers that LAGSHIFT could save or rank.
+
 ## [1.0.1] - 2026-09-09
 
 ### Added
@@ -56,6 +72,7 @@ multi-device and multi-network validation.
 - GameLink relay, public backend, remote geography, anonymous radar, and remote
   bandwidth tests are disabled in the public build.
 
-[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...HEAD
+[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.2...HEAD
+[1.0.2]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...v1.0.2
 [1.0.1]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.0...v1.0.1
 [1.0.0]: https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.0

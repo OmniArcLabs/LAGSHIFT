@@ -41,6 +41,6 @@ item is a disclosed compatibility boundary, not a hidden product claim.
 
 ## Release decision
 
-Version 1.0.1 is a local-first Stable release with the limitations above. Do not
+Version 1.0.2 is a local-first Stable release with the limitations above. Do not
 represent unchecked compatibility items as universally verified. New features
 remain frozen until blocking 1.0 defects are resolved.

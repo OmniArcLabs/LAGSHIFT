@@ -96,6 +96,7 @@ def _signature_is_cloudflare(cli_path: Path) -> bool:
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=12,
+            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
         )
         return result.returncode == 0
     except (OSError, subprocess.SubprocessError):

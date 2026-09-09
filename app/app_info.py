@@ -2,8 +2,8 @@
 
 APP_NAME = "LAGSHIFT"
 APP_DISPLAY_NAME = "LAGSHIFT — لگ‌شیفت"
-APP_VERSION = "1.0.1"
-BUILD_NUMBER = "1001"
+APP_VERSION = "1.0.2"
+BUILD_NUMBER = "1002"
 BRAND_PUBLISHER = "OMNIARC"
 # These values are intentionally empty until the owner approves public/legal
 # identity. Release tooling must fail the Stable gate rather than invent them.

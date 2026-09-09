@@ -271,51 +271,63 @@ class MainViewModel(QObject):
     def run_route_dna_diagnostic(self, deep_confirmed: bool = False):
         settings = settings_service.load_settings()
         if not settings.get("route_dna_enabled", True):
-            self.status_message.emit("برای اجرای آزمایش، ابتدا RouteDNA را روشن کن", "info")
+            message = "برای اجرای آزمایش، ابتدا RouteDNA را روشن کن"
+            self.status_message.emit(message, "info")
+            self.route_dna_diagnostic_ready.emit({"ok": False, "error": message})
             return
         adapter_name = self.active_adapter_name or next(
             (item.name for item in self.adapters if getattr(item, "is_enabled", False)), ""
         )
         if not adapter_name:
-            self.status_message.emit("کارت شبکه فعالی برای آزمایش پیدا نشد", "error")
+            message = "کارت شبکه فعالی برای آزمایش پیدا نشد"
+            self.status_message.emit(message, "error")
+            self.route_dna_diagnostic_ready.emit({"ok": False, "error": message})
             return
         self.status_message.emit("RouteDNA در حال بررسی Gateway، Wi‑Fi و ظرفیت مسیر است…", "info")
 
         def worker():
-            context = self._route_dna_snapshot(
-                adapter_name, "download", settings, sample_gateway=True,
-            )
-            policy = route_dna_service.probe_policy(
-                context, game_running=bool(self._optimizing_game),
-                requested=str(settings.get("route_dna_probe_mode", "light")),
-            )
-            daily_limit = int(settings.get("route_dna_daily_budget_mb", 25))
-            budget = route_dna_service.probe_budget_status(daily_limit)
-            backend_ready = bool(route_dna_service._public_https_base(
-                settings.get("gamelink_api_url", "")
-            ))
-            blocked_by_load = (
-                context.get("pressure") == "busy" or bool(self._optimizing_game)
-            )
-            bandwidth = {"ok": False, "skipped": True,
-                         "reason": "backend-unconfigured", "mode": policy["mode"]}
-            if blocked_by_load:
-                bandwidth["reason"] = "network-busy"
-            elif backend_ready:
-                budget = route_dna_service.reserve_probe_budget(
-                    route_dna_service.bandwidth_budget_kb(policy["mode"]), daily_limit,
+            try:
+                context = self._route_dna_snapshot(
+                    adapter_name, "download", settings, sample_gateway=True,
                 )
-                if not budget["allowed"]:
-                    bandwidth["reason"] = "budget-exhausted"
-                else:
-                    bandwidth = route_dna_service.measure_controlled_bandwidth(
-                        settings.get("gamelink_api_url", ""), policy["mode"],
-                        deep_confirmed=deep_confirmed, network_busy=False,
+                policy = route_dna_service.probe_policy(
+                    context, game_running=bool(self._optimizing_game),
+                    requested=str(settings.get("route_dna_probe_mode", "light")),
+                )
+                daily_limit = int(settings.get("route_dna_daily_budget_mb", 25))
+                budget = route_dna_service.probe_budget_status(daily_limit)
+                backend_ready = bool(route_dna_service._public_https_base(
+                    settings.get("gamelink_api_url", "")
+                ))
+                blocked_by_load = (
+                    context.get("pressure") == "busy" or bool(self._optimizing_game)
+                )
+                bandwidth = {"ok": False, "skipped": True,
+                             "reason": "backend-unconfigured", "mode": policy["mode"]}
+                if blocked_by_load:
+                    bandwidth["reason"] = "network-busy"
+                elif backend_ready:
+                    budget = route_dna_service.reserve_probe_budget(
+                        route_dna_service.bandwidth_budget_kb(policy["mode"]), daily_limit,
                     )
-            self.route_dna_diagnostic_ready.emit({
-                "context": context, "policy": policy,
-                "budget": budget, "bandwidth": bandwidth,
-            })
+                    if not budget["allowed"]:
+                        bandwidth["reason"] = "budget-exhausted"
+                    else:
+                        bandwidth = route_dna_service.measure_controlled_bandwidth(
+                            settings.get("gamelink_api_url", ""), policy["mode"],
+                            deep_confirmed=deep_confirmed, network_busy=False,
+                        )
+                self.route_dna_diagnostic_ready.emit({
+                    "ok": True, "context": context, "policy": policy,
+                    "budget": budget, "bandwidth": bandwidth,
+                })
+            except Exception as exc:
+                # A diagnostic must always reach a terminal UI state.  It is
+                # observational only, so failing open is both safe and honest.
+                self.route_dna_diagnostic_ready.emit({
+                    "ok": False,
+                    "error": f"بررسی محلی کامل نشد: {type(exc).__name__}",
+                })
 
         threading.Thread(target=worker, daemon=True).start()
 

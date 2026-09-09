@@ -884,9 +884,13 @@ class MainWindow(QMainWindow):
         warp_box.addWidget(warp_warning)
         layout.addWidget(warp_panel)
 
-        layout.addWidget(QLabel("مسیرهای ذخیره‌شده:"))
+        legacy_routes_panel = QWidget()
+        legacy_routes_layout = QVBoxLayout(legacy_routes_panel)
+        legacy_routes_layout.setContentsMargins(0, 0, 0, 0)
+        legacy_routes_layout.setSpacing(10)
+        legacy_routes_layout.addWidget(QLabel("مسیرهای ذخیره‌شده:"))
         self.tunnel_list = QListWidget()
-        layout.addWidget(self.tunnel_list, 1)
+        legacy_routes_layout.addWidget(self.tunnel_list, 1)
 
         row2 = QGridLayout()
         self.ping_test_btn = QPushButton("📶 تست پینگ")
@@ -898,16 +902,16 @@ class MainWindow(QMainWindow):
         row2.addWidget(self.trial_btn, 0, 1)
         row2.addWidget(self.rate_config_btn, 1, 0)
         row2.addWidget(self.remove_tunnel_btn, 1, 1)
-        layout.addLayout(row2)
+        legacy_routes_layout.addLayout(row2)
 
         self.tunnel_toggle_btn = QPushButton("اتصال هوشمند")
         self.tunnel_toggle_btn.setObjectName("primary")
-        layout.addWidget(self.tunnel_toggle_btn)
+        legacy_routes_layout.addWidget(self.tunnel_toggle_btn)
 
         self.tunnel_scope_label = QLabel("محدوده اتصال: غیرفعال")
         self.tunnel_scope_label.setWordWrap(True)
         self.tunnel_scope_label.setStyleSheet("color:#80CBC4; padding:4px;")
-        layout.addWidget(self.tunnel_scope_label)
+        legacy_routes_layout.addWidget(self.tunnel_scope_label)
 
         self.route_quality_label = QLabel("Game Score: هنوز مسیری ارزیابی نشده")
         self.route_quality_label.setWordWrap(True)
@@ -915,22 +919,24 @@ class MainWindow(QMainWindow):
             "background:#171717; border:1px solid #2B2B2B; border-radius:8px; "
             "padding:9px; color:#B0BEC5;"
         )
-        layout.addWidget(self.route_quality_label)
+        legacy_routes_layout.addWidget(self.route_quality_label)
 
-        layout.addWidget(QLabel("تاریخچه‌ی پینگ (وقتی تانل وصله):"))
+        legacy_routes_layout.addWidget(QLabel("تاریخچه‌ی پینگ (وقتی تانل وصله):"))
         self.ping_chart = PingHistoryChart()
-        layout.addWidget(self.ping_chart)
+        legacy_routes_layout.addWidget(self.ping_chart)
 
         self.speed_test_btn = QPushButton("⚡ سنجش واقعی مسیر فعال")
-        layout.addWidget(self.speed_test_btn)
+        legacy_routes_layout.addWidget(self.speed_test_btn)
         self.speed_test_result = QLabel("")
         self.speed_test_result.setStyleSheet("color:#B0BEC5; font-size:12px;")
         self.speed_test_result.setWordWrap(True)
-        layout.addWidget(self.speed_test_result)
+        legacy_routes_layout.addWidget(self.speed_test_result)
+        legacy_routes_panel.setVisible(ALLOW_CUSTOM_TUNNELS)
+        layout.addWidget(legacy_routes_panel)
 
         note = QLabel(
-            "WARP فقط پس از آزمون واقعی مسیر فعال می‌شود. در نسخه عمومی، اتصال به "
-            "بازی در حال اجرا محدود است و با بسته‌شدن بازی خاتمه پیدا می‌کند."
+            "WARP سرور قابل‌انتخاب یا ذخیره‌شده در اختیار LAGSHIFT نمی‌گذارد. "
+            "نسخه عمومی فقط حالت‌های رسمی Cloudflare را زنده آزمایش می‌کند و وضعیت واقعی را نشان می‌دهد."
             if not ALLOW_CUSTOM_TUNNELS else
             "اتصال هوشمند مسیرها را با عبور واقعی ترافیک بررسی می‌کند و بهترین مسیر سالم را فعال می‌کند."
         )
@@ -3553,7 +3559,18 @@ class MainWindow(QMainWindow):
                 return
         self.route_dna_test_btn.setEnabled(False)
         self.route_dna_test_result.setText("شبکه در حال بررسی است…")
+        self._route_dna_diagnostic_pending = True
+        QTimer.singleShot(30000, self._on_route_dna_diagnostic_timeout)
         self.vm.run_route_dna_diagnostic(confirmed)
+
+    def _on_route_dna_diagnostic_timeout(self):
+        if not getattr(self, "_route_dna_diagnostic_pending", False):
+            return
+        self._route_dna_diagnostic_pending = False
+        self.route_dna_test_btn.setEnabled(True)
+        message = "بررسی RouteDNA بیش از حد طول کشید؛ هیچ تغییری روی شبکه اعمال نشد. دوباره امتحان کن."
+        self.route_dna_test_result.setText(message)
+        self.banner.show_message(message, "error", 7000)
 
     def _on_route_dna_geo_toggled(self, enabled: bool):
         if enabled:
@@ -3579,7 +3596,15 @@ class MainWindow(QMainWindow):
         self._set_setting("route_dna_remote_geo", enabled)
 
     def _on_route_dna_diagnostic_ready(self, result: dict):
+        if not getattr(self, "_route_dna_diagnostic_pending", True):
+            return
+        self._route_dna_diagnostic_pending = False
         self.route_dna_test_btn.setEnabled(True)
+        if not result.get("ok", True):
+            message = result.get("error") or "بررسی RouteDNA کامل نشد؛ شبکه بدون تغییر باقی ماند."
+            self.route_dna_test_result.setText(message)
+            self.banner.show_message(message, "error", 7000)
+            return
         context = result.get("context") or {}
         gateway = context.get("gateway_quality") or {}
         bandwidth = result.get("bandwidth") or {}
@@ -3602,6 +3627,7 @@ class MainWindow(QMainWindow):
             parts.append(reasons.get(bandwidth.get("reason"), "تست سرعت در دسترس نبود"))
         parts.append(f"بودجه باقی‌مانده حدود {budget.get('remaining_kb', 0) // 1024} MB")
         self.route_dna_test_result.setText(" · ".join(parts))
+        self.banner.show_message("بررسی RouteDNA کامل شد؛ نتیجه داخل همین صفحه آماده است.", "success", 4500)
 
     def resizeEvent(self, event):
         """Keep controls usable on compact windows instead of clipping them."""

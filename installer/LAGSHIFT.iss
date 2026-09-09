@@ -1,5 +1,5 @@
 #define MyAppName "LAGSHIFT"
-#define MyAppVersion "1.0.1"
+#define MyAppVersion "1.0.2"
 #define MyAppPublisher "OMNIARC"
 #define MyAppExeName "LAGSHIFT.exe"
 #define BuildSource "E:\LAGSHIFT-Builds\public-rc\dist\LAGSHIFT"
@@ -33,13 +33,13 @@ ArchitecturesAllowed=x64compatible
 ArchitecturesInstallIn64BitMode=x64compatible
 #ifdef BootstrapEngine
 OutputDir=E:\LAGSHIFT-Builds\engine
-OutputBaseFilename=LAGSHIFT-1.0.1-Engine
+OutputBaseFilename=LAGSHIFT-1.0.2-Engine
 #else
 OutputDir=E:\LAGSHIFT-Builds\public-rc\installer
 #ifdef QaBuild
-OutputBaseFilename=LAGSHIFT-1.0.1-QA-Setup
+OutputBaseFilename=LAGSHIFT-1.0.2-QA-Setup
 #else
-OutputBaseFilename=LAGSHIFT-1.0.1-Setup
+OutputBaseFilename=LAGSHIFT-1.0.2-Setup
 #endif
 #endif
 SetupIconFile=..\app\resources\branding\lagshift.ico

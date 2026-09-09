@@ -1,7 +1,7 @@
 param(
     [string]$InstallerDirectory = 'E:\LAGSHIFT-Builds\public-rc\installer',
     [string]$OutputFile = (Join-Path $PSScriptRoot '..\SHA256SUMS.txt'),
-    [string]$Version = '1.0.1'
+    [string]$Version = '1.0.2'
 )
 
 $ErrorActionPreference = 'Stop'

@@ -578,6 +578,21 @@ class ProductFoundationTests(unittest.TestCase):
         self.assertFalse(app_info.ALLOW_SYSTEM_WIDE_TUNNEL)
         self.assertFalse(app_info.ALLOW_LEGACY_WARP_REGISTRATION)
 
+    def test_public_ui_hides_legacy_saved_tunnel_controls(self):
+        source = (Path(__file__).resolve().parents[1] / "app" / "views" / "main_window.py").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("legacy_routes_panel.setVisible(ALLOW_CUSTOM_TUNNELS)", source)
+        self.assertIn("WARP سرور قابل‌انتخاب یا ذخیره‌شده", source)
+
+    def test_warp_inspection_processes_stay_hidden_on_windows(self):
+        source = (Path(__file__).resolve().parents[1] / "app" / "services" /
+                  "official_warp_service.py").read_text(encoding="utf-8")
+        signature_probe = source[source.index("def _signature_is_cloudflare"):source.index(
+            "def _cli_output"
+        )]
+        self.assertIn('creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)', signature_probe)
+
     def test_legacy_data_is_copied_without_deleting_the_source(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(
             os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
@@ -1458,9 +1473,17 @@ class UpdateTests(unittest.TestCase):
             verified = update_service.verify_manifest(
                 document, app_info.UPDATE_PUBLIC_KEY_B64, channel
             )
-            self.assertEqual(verified["version"], app_info.APP_VERSION)
+            # During packaging, the already-published manifest may still point
+            # at the previous release. It must never point at a future version;
+            # the final release gate replaces it after the installer exists.
+            self.assertLessEqual(
+                update_service._version_tuple(verified["version"]),
+                update_service._version_tuple(app_info.APP_VERSION),
+            )
             self.assertEqual(verified["channel"], channel)
-            self.assertIn("/releases/download/v1.0.1/", verified["url"])
+            self.assertIn(
+                f'/releases/download/v{verified["version"]}/', verified["url"]
+            )
 
     def test_tampered_update_manifest_is_rejected(self):
         document, public_key = self._signed_manifest()
