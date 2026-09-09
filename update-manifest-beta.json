@@ -1,11 +1,11 @@
 {
-  "version": "1.0.3",
+  "version": "1.0.4",
   "channel": "beta",
-  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.0.3/LAGSHIFT-1.0.3-Setup-Light.exe",
-  "sha256": "3c74c1bb0945e1b979483f308cc8e32a00e5e0323ad87c1eff60104ae9640377",
-  "size": 37218304,
-  "notes": "ترمیم ارتقای Qt/Python، جایگزینی یک‌پارچه فایل‌های اجرایی و قفل محیط ساخت پایدار.",
+  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.0.4/LAGSHIFT-1.0.4-Setup-Light.exe",
+  "sha256": "4cb631f5b23f3cdf6036f0e4fd51b11b6e79596ea6dcd7c68bc3f6b29daa9b23",
+  "size": 37223936,
+  "notes": "رفع قطعی گیرکردن اعلان‌ها، زمان نمایش هوشمند و جلوگیری از تمدید پیام‌های تکراری.",
   "mandatory": false,
-  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.3",
-  "signature": "+D0pPEe8qF2bndJpSQDUgK6x6LqizyUotdr7M5h+STaMJYj7qgWZ0Hdmx64IMlTr5WkbkibnpXommbbXTDxuBA=="
+  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.4",
+  "signature": "8UichAxuGRMe1q6vyGHNsBHfNYrAighwJtez+5sN87aX9i/nAi/sAAjH/VW4/GXeziuOJY/lU555kRRibAq8DA=="
 }
