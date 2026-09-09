@@ -18,9 +18,12 @@ and validation on real devices and networks.
 - Publish reproducible compatibility results without claiming universal access.
 - Expand supported application profiles only when login, API, and CDN checks can
   be verified safely.
-- Add signed update delivery after a production endpoint and offline release key
-  process are ready.
+- Keep the signed updater, atomic runtime replacement, and repair path covered by
+  upgrade tests for every release.
 - Pursue trusted Windows code signing when sustainable for the project.
+
+The detailed post-release product priorities and their acceptance criteria are
+recorded in [`docs/POST_RELEASE_PLAN_FA.md`](docs/POST_RELEASE_PLAN_FA.md).
 
 ## Later — infrastructure-dependent work
 
