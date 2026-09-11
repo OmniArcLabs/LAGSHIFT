@@ -1,3 +1,4 @@
+# One-shot publication job; the payload is always rebuilt from the immutable tag.
 name: Publish LAGSHIFT 1.1.0
 
 on:
