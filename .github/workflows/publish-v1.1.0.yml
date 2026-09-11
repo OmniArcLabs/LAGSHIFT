@@ -1,0 +1,112 @@
+name: Publish LAGSHIFT 1.1.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/workflows/publish-v1.1.0.yml
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-lagshift-v1.1.0
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+      LAGSHIFT_RELEASE_TAG: v1.1.0
+
+    steps:
+      - name: Check out the immutable release tag
+        uses: actions/checkout@v4
+        with:
+          ref: v1.1.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install pinned build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-dev.txt
+          choco install innosetup --no-progress -y
+
+      - name: Prepare isolated release drive
+        shell: pwsh
+        run: |
+          if (Test-Path E:\) {
+            throw "The isolated E: build drive is already occupied on this runner."
+          }
+          subst E: $env:RUNNER_TEMP
+
+      - name: Build and test release installers
+        shell: pwsh
+        run: .\build-installer.ps1 -PythonPath python
+
+      - name: Verify release payload and checksums
+        shell: pwsh
+        run: |
+          $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
+          $full = Join-Path $installerDir 'LAGSHIFT-1.1.0-Setup.exe'
+          $light = Join-Path $installerDir 'LAGSHIFT-1.1.0-Setup-Light.exe'
+          $checksums = Join-Path $installerDir 'SHA256SUMS.txt'
+          foreach ($path in @($full, $light, $checksums)) {
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Missing release artifact: $path"
+            }
+          }
+          if ((Get-Item -LiteralPath $full).Length -lt 100MB) {
+            throw 'Self-contained installer is unexpectedly small.'
+          }
+          if ((Get-Item -LiteralPath $light).Length -lt 30MB) {
+            throw 'Light installer is unexpectedly small.'
+          }
+          $expected = @{}
+          Get-Content -LiteralPath $checksums | ForEach-Object {
+            if ($_ -match '^([A-Fa-f0-9]{64})\s+(.+)$') {
+              $expected[$Matches[2]] = $Matches[1].ToUpperInvariant()
+            }
+          }
+          foreach ($path in @($full, $light)) {
+            $name = Split-Path -Leaf $path
+            $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
+            if ($expected[$name] -ne $actual) {
+              throw "Checksum mismatch for $name"
+            }
+            $version = (Get-Item -LiteralPath $path).VersionInfo.FileVersion
+            if ($version -ne '1.1.0.0') {
+              throw "Unexpected file version for ${name}: $version"
+            }
+          }
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
+          $assets = @(
+            (Join-Path $installerDir 'LAGSHIFT-1.1.0-Setup-Light.exe'),
+            (Join-Path $installerDir 'LAGSHIFT-1.1.0-Setup.exe'),
+            (Join-Path $installerDir 'SHA256SUMS.txt')
+          )
+          gh release create $env:LAGSHIFT_RELEASE_TAG @assets `
+            --repo $env:GITHUB_REPOSITORY `
+            --verify-tag `
+            --title 'LAGSHIFT 1.1.0 - Intelligence Update' `
+            --notes-file RELEASE_NOTES.md `
+            --latest
