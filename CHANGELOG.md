@@ -6,8 +6,36 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 
 ## [Unreleased]
 
-No public changes yet. Development is feature-frozen while 1.0 receives
-multi-device and multi-network validation.
+No public changes yet.
+
+## [1.1.0] - 2026-09-11
+
+### Added
+
+- Added a privacy-first domestic-tariff inspector that follows redirects,
+  resolves the final IPv4/IPv6 destination, and produces a sanitized receipt.
+- Added a signed, expiring tariff-catalog format that fails closed when no
+  auditable source is configured.
+- Added direct links to the official ITO lookup and the 195 billing-complaint
+  service without silently sending user URLs to third parties.
+- Added a guided first-run experience, unified health tools, system-tray
+  controls, and a signed-package self-repair entry point.
+- Added a privacy-safe GitHub issue handoff for manually submitted diagnostics.
+
+### Changed
+
+- Uses the official wording `domestic tariff` and no longer presents Iranian
+  hosting or a `.ir` suffix as proof of a billing discount.
+- Gives the final file server more weight than low-volume landing-page redirects.
+- Signed download queries remain usable in volatile memory while tokens and
+  fragments are excluded from results, history, and copied receipts.
+
+### Security
+
+- Rejects local/private redirect destinations, insecure catalog updates,
+  tampered catalogs, and expired signed tariff data.
+- Warns when HTTP, VPN, or WARP makes the observed route unsuitable as billing
+  evidence.
 
 ## [1.0.4] - 2026-09-09
 
@@ -97,7 +125,8 @@ multi-device and multi-network validation.
 - GameLink relay, public backend, remote geography, anonymous radar, and remote
   bandwidth tests are disabled in the public build.
 
-[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.4...HEAD
+[Unreleased]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.4...v1.1.0
 [1.0.4]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.3...v1.0.4
 [1.0.3]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.2...v1.0.3
 [1.0.2]: https://github.com/OmniArcLabs/LAGSHIFT/compare/v1.0.1...v1.0.2
