@@ -112,7 +112,7 @@ FinishedHeadingLabel=LAGSHIFT آماده است
 FinishedLabel=نصب [name] با موفقیت تمام شد.
 
 [Code]
-function SetTimer(hWnd: HWND; nIDEvent: UINT_PTR; uElapse: UINT; lpTimerFunc: NativeInt): UINT_PTR;
+function SetTimer(hWnd: HWND; nIDEvent: UINT_PTR; uElapse: UINT; lpTimerFunc: LongWord): UINT_PTR;
 external 'SetTimer@user32.dll stdcall';
 
 function KillTimer(hWnd: HWND; nIDEvent: UINT_PTR): BOOL;
