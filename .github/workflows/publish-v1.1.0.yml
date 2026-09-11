@@ -6,6 +6,7 @@ on:
     branches: [main]
     paths:
       - .github/workflows/publish-v1.1.0.yml
+      - .github/release-requests/v1.1.0
 
 permissions:
   contents: write
