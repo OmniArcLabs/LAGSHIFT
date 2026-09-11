@@ -23,19 +23,19 @@ jobs:
 
     steps:
       - name: Check out the immutable release tag
-        uses: actions/checkout@v4
+        uses: actions/checkout@v5
         with:
           ref: v1.1.0
           fetch-depth: 0
 
       - name: Set up Python 3.12
-        uses: actions/setup-python@v5
+        uses: actions/setup-python@v6
         with:
           python-version: "3.12"
           cache: pip
 
       - name: Set up .NET 10
-        uses: actions/setup-dotnet@v4
+        uses: actions/setup-dotnet@v5
         with:
           dotnet-version: 10.0.x
 
@@ -55,7 +55,23 @@ jobs:
 
       - name: Build and test release installers
         shell: pwsh
-        run: .\build-installer.ps1 -PythonPath python
+        run: |
+          $logPath = Join-Path $env:RUNNER_TEMP 'lagshift-release-build.log'
+          $failure = $null
+          try {
+            & .\build-installer.ps1 -PythonPath python *>&1 |
+              Tee-Object -FilePath $logPath
+          }
+          catch {
+            $failure = $_
+          }
+          if ($failure -or $LASTEXITCODE -ne 0) {
+            $tail = (Get-Content -LiteralPath $logPath -Tail 35) -join ' | '
+            $tail = $tail.Replace('%', '%25').Replace("`r", '').Replace("`n", '%0A')
+            Write-Host "::error title=LAGSHIFT release build failed::$tail"
+            if ($failure) { throw $failure }
+            exit $LASTEXITCODE
+          }
 
       - name: Verify release payload and checksums
         shell: pwsh
