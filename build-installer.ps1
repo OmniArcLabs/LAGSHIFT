@@ -53,6 +53,7 @@ if ($CertificateThumbprint) {
 }
 
 $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
+New-Item -ItemType Directory -Force -Path $installerDir | Out-Null
 $publicInstaller = Join-Path $installerDir "LAGSHIFT-$version-Setup.exe"
 
 $publishDir = 'E:\LAGSHIFT-Builds\bootstrapper-publish'
