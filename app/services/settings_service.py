@@ -35,6 +35,10 @@ DEFAULTS: Dict[str, Any] = {
     "reduce_motion": False,
     "startup_animation_enabled": True,
     "brand_intro_seen": False,
+    "onboarding_completed": False,
+    "onboarding_primary_goal": "games",
+    "onboarding_network_kind": "auto",
+    "onboarding_run_light_test": True,
     "automatic_update_checks": True,
     "update_channel": "stable",
     "blackbox_enabled": True,
@@ -74,6 +78,10 @@ def load_settings() -> Dict[str, Any]:
             data = json.loads(path.read_text(encoding="utf-8"))
             merged = dict(DEFAULTS)
             merged.update(data)
+            # Existing 1.0 users already completed a real first run.  Do not
+            # interrupt them after upgrading merely because this key is new.
+            if "onboarding_completed" not in data and data.get("brand_intro_seen"):
+                merged["onboarding_completed"] = True
             if not ALLOW_GAMELINK:
                 merged["turbo_mode"] = False
                 merged["gamelink_api_url"] = ""

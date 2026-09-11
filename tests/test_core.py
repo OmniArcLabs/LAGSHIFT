@@ -679,6 +679,8 @@ class ProductFoundationTests(unittest.TestCase):
             wrapper.index('DeleteKnownPayload(installPath)'),
             wrapper.index('CopyDirectory(backupPath, installPath, overwrite: true)'),
         )
+        self.assertIn('LAGSHIFT Recovery', inno)
+        self.assertIn('/LAGSHIFT/releases/latest', inno)
 
     def test_release_build_enforces_pinned_python_and_qt(self):
         script = (Path(__file__).resolve().parents[1] / "build.ps1").read_text(encoding="utf-8")
@@ -710,6 +712,23 @@ class ProductFoundationTests(unittest.TestCase):
             settings["privacy_acknowledged_version"] = app_info.PRIVACY_VERSION
             settings_service.save_settings(settings)
             self.assertTrue(settings_service.has_current_legal_acceptance())
+
+    def test_existing_1_0_user_is_not_interrupted_by_new_onboarding(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(
+            os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
+        ):
+            Path(folder, "LAGSHIFT").mkdir(parents=True, exist_ok=True)
+            Path(folder, "LAGSHIFT", "settings.json").write_text(
+                json.dumps({"brand_intro_seen": True}), encoding="utf-8"
+            )
+            settings = settings_service.load_settings()
+            self.assertTrue(settings["onboarding_completed"])
+
+    def test_fresh_install_keeps_onboarding_pending(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(
+            os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
+        ):
+            self.assertFalse(settings_service.load_settings()["onboarding_completed"])
 
     def test_public_stable_ignores_stale_cloud_preferences(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(

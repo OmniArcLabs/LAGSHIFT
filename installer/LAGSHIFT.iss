@@ -81,6 +81,7 @@ Name: "{app}"; Permissions: users-readexec
 
 [Icons]
 Name: "{autoprograms}\LAGSHIFT"; Filename: "{app}\{#MyAppExeName}"
+Name: "{autoprograms}\LAGSHIFT Recovery"; Filename: "https://github.com/OmniArcLabs/LAGSHIFT/releases/latest"; Comment: "دریافت آخرین نصب‌کننده سالم LAGSHIFT"
 Name: "{autodesktop}\LAGSHIFT"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]

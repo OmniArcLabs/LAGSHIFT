@@ -8,6 +8,7 @@ from app.app_info import APP_DISPLAY_NAME, APP_NAME
 from app.views.brand import StartupSplash, load_brand_fonts, make_app_icon
 from app.views.main_window import MainWindow
 from app.views.terms_dialog import TermsDialog
+from app.views.onboarding_dialog import OnboardingDialog
 
 
 class NoDottedFocusStyle(QProxyStyle):
@@ -62,6 +63,14 @@ def main():
             return
         settings = settings_service.load_settings()
 
+    run_first_route_test = False
+    if not minimized and not settings.get("onboarding_completed", False):
+        accepted = OnboardingDialog().exec() == OnboardingDialog.Accepted
+        settings = settings_service.load_settings()
+        run_first_route_test = accepted and settings.get("onboarding_run_light_test", False)
+        if run_first_route_test:
+            settings_service.set_value("onboarding_run_light_test", False)
+
     show_intro = settings.get("startup_animation_enabled", True) and not minimized
     splash = None
     if show_intro:
@@ -74,6 +83,10 @@ def main():
         app.processEvents()
 
     window = MainWindow()
+
+    def start_first_route_test():
+        if run_first_route_test:
+            window._run_route_dna_diagnostic()
 
     def offer_crash_recovery():
         if not previous_unclean or not crash_service.pending_count():
@@ -119,12 +132,14 @@ def main():
             animation.start()
             window._startup_reveal_animation = animation
             QTimer.singleShot(600, offer_crash_recovery)
+            QTimer.singleShot(1100, start_first_route_test)
 
         splash.finished.connect(reveal_window)
         splash.play()
     else:
         window.show()
         QTimer.singleShot(600, offer_crash_recovery)
+        QTimer.singleShot(1100, start_first_route_test)
 
     sys.exit(app.exec())
 
