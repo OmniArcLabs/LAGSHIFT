@@ -1454,8 +1454,10 @@ class MainWindow(QMainWindow):
         blackbox_layout.addWidget(self.blackbox_status_label)
         blackbox_actions = QHBoxLayout()
         self.blackbox_export_btn = QPushButton("ساخت فایل برای ارسال دستی")
+        self.github_issue_btn = QPushButton("باز کردن فرم امن GitHub")
         self.blackbox_clear_btn = QPushButton("پاک‌کردن گزارش‌های محلی")
         blackbox_actions.addWidget(self.blackbox_export_btn)
+        blackbox_actions.addWidget(self.github_issue_btn)
         blackbox_actions.addWidget(self.blackbox_clear_btn)
         blackbox_layout.addLayout(blackbox_actions)
         layout.addWidget(blackbox_card)
@@ -1714,6 +1716,7 @@ class MainWindow(QMainWindow):
         self.safe_report_btn.clicked.connect(self.vm.create_safe_report)
         self.blackbox_check.toggled.connect(self._on_blackbox_toggled)
         self.blackbox_export_btn.clicked.connect(self._export_blackbox_reports)
+        self.github_issue_btn.clicked.connect(self._open_github_bug_form)
         self.blackbox_clear_btn.clicked.connect(self._clear_blackbox_reports)
         self.security_quick_btn.clicked.connect(lambda: self._start_security_audit(False))
         self.security_full_btn.clicked.connect(lambda: self._start_security_audit(True))
@@ -3459,6 +3462,16 @@ class MainWindow(QMainWindow):
             self, "فایل گزارش آماده شد",
             f"این فایل را می‌توانی دستی برای پشتیبانی بفرستی:\n{path}\n\n"
             "هیچ داده‌ای خودکار ارسال نشده است.",
+        )
+
+    def _open_github_bug_form(self):
+        QDesktopServices.openUrl(QUrl(
+            "https://github.com/OmniArcLabs/LAGSHIFT/issues/new"
+            "?template=bug_report.yml&title=%5BBug%5D%3A%20"
+        ))
+        self.banner.show_message(
+            "فرم رسمی گزارش باز شد؛ قبل از ارسال، اطلاعات شخصی یا لینک خصوصی را وارد نکن.",
+            "info", 6500,
         )
 
     def _clear_blackbox_reports(self):
