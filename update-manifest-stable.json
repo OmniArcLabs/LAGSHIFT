@@ -1,11 +1,11 @@
 {
-  "version": "1.0.4",
+  "version": "1.1.0",
   "channel": "stable",
-  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.0.4/LAGSHIFT-1.0.4-Setup-Light.exe",
-  "sha256": "4cb631f5b23f3cdf6036f0e4fd51b11b6e79596ea6dcd7c68bc3f6b29daa9b23",
-  "size": 37223936,
-  "notes": "رفع قطعی گیرکردن اعلان‌ها، زمان نمایش هوشمند و جلوگیری از تمدید پیام‌های تکراری.",
+  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.1.0/LAGSHIFT-1.1.0-Setup-Light.exe",
+  "sha256": "fee98ad8715cfb796936fa64fae3cf10827511fb62ac57bb8a95acc5df2b67b8",
+  "size": 38082048,
+  "notes": "به‌روزرسانی Intelligence: تشخیص محافظه‌کار تعرفه داخلی، پنل ابزارها و سلامت، راه‌اندازی اولیه، ترمیم نصب و گزارش امن GitHub.",
   "mandatory": false,
-  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.0.4",
-  "signature": "PxL4l6rgqTXO8aBa6yJdX2H/hTYttCtKBu58kagOl6G/gNhsJRWy73d3H2VkGqDaZpl/VKgzOY/ApkR2L3jACQ=="
+  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.1.0",
+  "signature": "sA4HAO1QaH8MbbLfNm/auWqRAiSUl3XVGEhRoN2GX1MY/y68r1cvYdSF8LtNp1Gz9BgaEhTLv39PZT5N0W5iDA=="
 }
