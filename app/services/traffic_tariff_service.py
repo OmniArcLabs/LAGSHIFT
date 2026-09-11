@@ -15,6 +15,7 @@ import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import asdict, dataclass, field
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -39,6 +40,9 @@ class TariffAnalysisError(ValueError):
 class TariffCatalog:
     revision: str = "bundled-empty"
     source_name: str = "بدون فهرست رسمی"
+    source_url: str = ""
+    updated_at: str = ""
+    expires_at: str = ""
     domestic_domains: frozenset[str] = frozenset()
     domestic_networks: tuple[ipaddress._BaseNetwork, ...] = ()
 
@@ -60,6 +64,9 @@ class TariffCatalog:
         return cls(
             revision=str(document.get("revision", ""))[:80],
             source_name=str(document.get("source_name", "فهرست تعرفه"))[:120],
+            source_url=str(document.get("source_url", ""))[:500],
+            updated_at=str(document.get("updated_at", ""))[:40],
+            expires_at=str(document.get("expires_at", ""))[:40],
             domestic_domains=clean_domains,
             domestic_networks=clean_networks,
         )
@@ -79,6 +86,24 @@ class TariffCatalog:
                 return True
         return False
 
+    def evidence(self, host: str, addresses: Iterable[str]) -> tuple[str, ...]:
+        """Return non-sensitive catalog evidence for one hop."""
+        evidence: list[str] = []
+        normalized = host.casefold().rstrip(".")
+        if any(normalized == item or normalized.endswith("." + item)
+               for item in self.domestic_domains):
+            evidence.append("دامنه")
+        for value in addresses:
+            try:
+                address = ipaddress.ip_address(value)
+            except ValueError:
+                continue
+            if any(address.version == network.version and address in network
+                   for network in self.domestic_networks):
+                evidence.append("IP")
+                break
+        return tuple(evidence)
+
 
 @dataclass(frozen=True)
 class RedirectStep:
@@ -87,6 +112,8 @@ class RedirectStep:
     addresses: tuple[str, ...]
     status: int
     content_length: int | None = None
+    registered: bool = False
+    evidence: tuple[str, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
@@ -102,6 +129,11 @@ class TariffResult:
     steps: tuple[RedirectStep, ...] = field(default_factory=tuple)
     catalog_revision: str = ""
     catalog_source: str = ""
+    catalog_updated_at: str = ""
+    catalog_source_url: str = ""
+    insecure_path: bool = False
+    checked_at: str = ""
+    operator_name: str = "نامشخص"
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -144,6 +176,26 @@ def sanitize_url(value: str) -> str:
         netloc += f":{port}"
     path = parsed.path or "/"
     return urllib.parse.urlunsplit((parsed.scheme.casefold(), netloc, path, "", ""))
+
+
+def _request_url(value: str) -> str:
+    """Validate a URL while keeping its query only in volatile memory.
+
+    Signed download links frequently require a query token.  The public result,
+    history and redirect receipt continue to use :func:`sanitize_url`, so that
+    token is neither displayed nor persisted.
+    """
+    raw = str(value).strip()
+    sanitize_url(raw)  # Applies scheme, credential, host and port validation.
+    parsed = urllib.parse.urlsplit(raw)
+    host = parsed.hostname.encode("idna").decode("ascii").casefold().rstrip(".")
+    port = parsed.port
+    netloc = f"[{host}]" if ":" in host else host
+    if port is not None:
+        netloc += f":{port}"
+    return urllib.parse.urlunsplit(
+        (parsed.scheme.casefold(), netloc, parsed.path or "/", parsed.query, "")
+    )
 
 
 def history_identity(value: str) -> dict:
@@ -204,57 +256,78 @@ def analyze_url(
     catalog: TariffCatalog | None = None,
     *,
     warp_or_vpn_active: bool = False,
+    operator_name: str = "نامشخص",
     timeout: float = 5.0,
     resolver: Callable[[str], tuple[str, ...]] = _resolve_public,
     opener=None,
 ) -> TariffResult:
     catalog = catalog or TariffCatalog()
     opener = opener or urllib.request.build_opener(_NoRedirect())
-    current = sanitize_url(value)
-    requested = current
+    current_request = _request_url(value)
+    requested = sanitize_url(value)
     steps: list[RedirectStep] = []
     visited: set[str] = set()
 
     for _ in range(MAX_REDIRECTS + 1):
-        if current in visited:
+        current = sanitize_url(current_request)
+        request_identity = hashlib.sha256(current_request.encode("utf-8")).hexdigest()
+        if request_identity in visited:
             raise TariffAnalysisError("حلقهٔ تغییر مسیر در لینک پیدا شد")
-        visited.add(current)
-        parsed = urllib.parse.urlsplit(current)
+        visited.add(request_identity)
+        parsed = urllib.parse.urlsplit(current_request)
         host = parsed.hostname or ""
         addresses = tuple(resolver(host))
         # Custom resolvers used by the UI/tests still pass through the same guard.
         if not addresses or any(not ipaddress.ip_address(item).is_global for item in addresses):
             raise TariffAnalysisError("آدرس‌های محلی و خصوصی قابل بررسی نیستند")
         try:
-            response = _open_once(opener, current, max(1.0, min(float(timeout), 12.0)))
+            response = _open_once(opener, current_request, max(1.0, min(float(timeout), 12.0)))
         except (OSError, urllib.error.URLError) as exc:
             raise TariffAnalysisError("ارتباط امن با سایت برقرار نشد") from exc
         try:
             status = int(getattr(response, "status", None) or response.getcode())
             length = _content_length(response.headers)
-            steps.append(RedirectStep(current, host, addresses, status, length))
+            evidence = catalog.evidence(host, addresses)
+            steps.append(RedirectStep(
+                url=current,
+                host=host,
+                addresses=addresses,
+                status=status,
+                content_length=length,
+                registered=bool(evidence),
+                evidence=evidence,
+            ))
             if status not in _REDIRECT_CODES:
                 break
             location = response.headers.get("Location", "")
             if not location:
                 raise TariffAnalysisError("پاسخ تغییر مسیر ناقص است")
-            current = sanitize_url(urllib.parse.urljoin(current, location))
+            current_request = _request_url(urllib.parse.urljoin(current_request, location))
         finally:
             response.close()
     else:
         raise TariffAnalysisError("تعداد تغییر مسیرهای لینک بیش از حد مجاز است")
 
-    matches = [catalog.matches(step.host, step.addresses) for step in steps]
+    matches = [step.registered for step in steps]
     if matches and all(matches):
         classification = "domestic"
-        title = "ثبت‌شده در فهرست ترافیک داخلی"
+        title = "در فهرست تعرفهٔ داخلی ثبت شده است"
         confidence = "بالا" if not warp_or_vpn_active else "محدود"
-        reasons = ("همهٔ میزبان‌های مسیر در فهرست معتبر داخلی ثبت شده‌اند.",)
+        reasons = ("همهٔ میزبان‌های مسیر در فهرست معتبر تعرفهٔ داخلی ثبت شده‌اند.",)
+    elif matches and matches[-1]:
+        classification = "domestic"
+        title = "سرور نهایی فایل در فهرست تعرفهٔ داخلی ثبت شده است"
+        confidence = "متوسط" if not warp_or_vpn_active else "محدود"
+        reasons = (
+            "میزبان تحویل‌دهندهٔ فایل ثبت شده است؛ بعضی صفحه‌ها یا تغییرمسیرهای کم‌حجم ثبت نشده‌اند.",
+        )
     elif any(matches):
         classification = "mixed"
-        title = "مسیر ترکیبی؛ احتمال محاسبهٔ بخشی با تعرفهٔ عادی"
+        title = "سرور نهایی فایل ثبت نشده است"
         confidence = "متوسط" if not warp_or_vpn_active else "محدود"
-        reasons = ("فقط بخشی از زنجیرهٔ دانلود در فهرست داخلی ثبت شده است.",)
+        reasons = (
+            "بخشی از مسیر ثبت شده، اما میزبان تحویل‌دهندهٔ بایت‌های اصلی فایل تأیید نشده است.",
+        )
     else:
         classification = "unknown"
         title = "تعرفه از روی اطلاعات معتبر قابل تأیید نیست"
@@ -264,8 +337,13 @@ def analyze_url(
             "پسوند .ir یا میزبانی داخل ایران به‌تنهایی تضمین تعرفه نیست.",
         )
     warning = ""
+    insecure_path = any(urllib.parse.urlsplit(step.url).scheme != "https" for step in steps)
+    warnings: list[str] = []
     if warp_or_vpn_active:
-        warning = "VPN یا WARP روشن است؛ مسیر دیده‌شده لزوماً همان مسیر صورتحساب اپراتور نیست."
+        warnings.append("VPN یا WARP روشن است؛ مسیر دیده‌شده لزوماً همان مسیر صورتحساب اپراتور نیست.")
+    if insecure_path:
+        warnings.append("بخشی از مسیر از HTTP استفاده می‌کند؛ برای لینک حساس یا توکن‌دار توصیه نمی‌شود.")
+    warning = " ".join(warnings)
     final_step = steps[-1]
     return TariffResult(
         requested_url=requested,
@@ -279,6 +357,11 @@ def analyze_url(
         steps=tuple(steps),
         catalog_revision=catalog.revision,
         catalog_source=catalog.source_name,
+        catalog_updated_at=catalog.updated_at,
+        catalog_source_url=catalog.source_url,
+        insecure_path=insecure_path,
+        checked_at=datetime.now().astimezone().isoformat(timespec="seconds"),
+        operator_name=str(operator_name).strip()[:40] or "نامشخص",
     )
 
 
@@ -314,7 +397,17 @@ def verify_signed_catalog(document: dict, public_key_b64: str) -> TariffCatalog:
         )
     except (ValueError, InvalidSignature) as exc:
         raise TariffAnalysisError("امضای فهرست تعرفه معتبر نیست") from exc
-    return TariffCatalog.from_document(document)
+    catalog = TariffCatalog.from_document(document)
+    if catalog.expires_at:
+        try:
+            expires = datetime.fromisoformat(catalog.expires_at.replace("Z", "+00:00"))
+            if expires.tzinfo is None:
+                expires = expires.replace(tzinfo=timezone.utc)
+        except ValueError as exc:
+            raise TariffAnalysisError("تاریخ اعتبار فهرست تعرفه معتبر نیست") from exc
+        if expires <= datetime.now(timezone.utc):
+            raise TariffAnalysisError("اعتبار فهرست تعرفه تمام شده است")
+    return catalog
 
 
 def _catalog_cache_path() -> Path:

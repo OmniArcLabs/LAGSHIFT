@@ -79,6 +79,28 @@ class TrafficTariffTests(unittest.TestCase):
         self.assertEqual(result.classification, "unknown")
         self.assertEqual(result.content_length, 2048)
 
+    def test_signed_query_is_used_but_never_exposed(self):
+        opener = MagicMock()
+        opener.open.return_value = _Response(200)
+        result = tariff.analyze_url(
+            "https://example.com/file.zip?token=very-secret#fragment",
+            resolver=lambda _host: ("8.8.8.8",), opener=opener,
+        )
+        requested = opener.open.call_args.args[0]
+        self.assertIn("token=very-secret", requested.full_url)
+        self.assertNotIn("very-secret", result.requested_url)
+        self.assertNotIn("very-secret", result.final_url)
+        self.assertNotIn("very-secret", str(result.to_dict()))
+
+    def test_http_hop_is_reported_as_insecure(self):
+        opener = MagicMock()
+        opener.open.return_value = _Response(200)
+        result = tariff.analyze_url(
+            "http://example.com/file", resolver=lambda _host: ("8.8.8.8",), opener=opener
+        )
+        self.assertTrue(result.insecure_path)
+        self.assertIn("HTTP", result.warning)
+
     def test_registered_chain_is_domestic_and_warp_lowers_confidence(self):
         opener = MagicMock()
         opener.open.return_value = _Response(200)
@@ -110,6 +132,23 @@ class TrafficTariffTests(unittest.TestCase):
         self.assertEqual(result.classification, "mixed")
         self.assertEqual(len(result.steps), 2)
 
+    def test_registered_final_download_host_outweighs_control_redirect(self):
+        opener = MagicMock()
+        opener.open.side_effect = [
+            _Response(302, {"Location": "https://files.inside.ir/file"}),
+            _Response(200, {"Content-Length": "4096"}),
+        ]
+        catalog = tariff.TariffCatalog.from_document({
+            "version": 1, "domestic_domains": ["inside.ir"], "domestic_networks": [],
+        })
+        result = tariff.analyze_url(
+            "https://landing.example/start", catalog,
+            resolver=lambda _host: ("8.8.8.8",), opener=opener,
+        )
+        self.assertEqual(result.classification, "domestic")
+        self.assertEqual(result.confidence, "متوسط")
+        self.assertIn("سرور نهایی", result.title)
+
     def test_history_is_bounded_and_contains_no_url_secret(self):
         response = _Response(200)
         opener = MagicMock()
@@ -140,6 +179,22 @@ class TrafficTariffTests(unittest.TestCase):
         )).decode("ascii")
         self.assertTrue(tariff.verify_signed_catalog(document, public).matches("example.ir", []))
         document["domestic_domains"] = ["attacker.example"]
+        with self.assertRaises(tariff.TariffAnalysisError):
+            tariff.verify_signed_catalog(document, public)
+
+    def test_expired_signed_catalog_fails_closed(self):
+        private = Ed25519PrivateKey.generate()
+        document = {
+            "version": 1, "revision": "expired", "source_name": "official",
+            "expires_at": "2000-01-01T00:00:00Z",
+            "domestic_domains": ["example.ir"], "domestic_networks": [],
+        }
+        document["signature"] = base64.b64encode(
+            private.sign(tariff._canonical_catalog(document))
+        ).decode("ascii")
+        public = base64.b64encode(private.public_key().public_bytes(
+            Encoding.Raw, PublicFormat.Raw
+        )).decode("ascii")
         with self.assertRaises(tariff.TariffAnalysisError):
             tariff.verify_signed_catalog(document, public)
 
