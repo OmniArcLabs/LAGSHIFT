@@ -44,3 +44,9 @@ UPDATE_CHANNEL = "stable"
 # Pages or an equivalent host is sufficient; empty values fail closed.
 APP_PROFILE_MANIFEST_URL = ""
 APP_PROFILE_PUBLIC_KEY_B64 = ""
+
+# Optional signed domestic-traffic eligibility catalog.  It stays empty until
+# OMNIARC has a stable, auditable source; the UI then reports "unknown" instead
+# of guessing from .ir or geolocation.
+TARIFF_CATALOG_URL = ""
+TARIFF_CATALOG_PUBLIC_KEY_B64 = ""

@@ -129,18 +129,7 @@ def check_for_update(manifest_url: str | None = None,
     if channel not in {"stable", "beta"}:
         return UpdateCheck(False, False, "کانال انتشار معتبر نیست")
     try:
-        url = _validate_https_url(selected_url)
-        request = urllib.request.Request(url, headers={
-            "User-Agent": f"{APP_NAME}/{current_version}",
-            "Cache-Control": "no-cache",
-        })
-        with _opener().open(request, timeout=8) as response:
-            payload = response.read(MAX_MANIFEST_BYTES + 1)
-        if len(payload) > MAX_MANIFEST_BYTES:
-            raise ValueError("مانیفست آپدیت بیش از حد بزرگ است")
-        manifest = verify_manifest(
-            json.loads(payload.decode("utf-8")), public_key_b64, channel
-        )
+        manifest = fetch_verified_manifest(selected_url, public_key_b64, channel, current_version)
         available = _version_tuple(manifest["version"]) > _version_tuple(current_version)
         message = (
             f"نسخه {manifest['version']} آماده دریافت است"
@@ -149,6 +138,26 @@ def check_for_update(manifest_url: str | None = None,
         return UpdateCheck(True, available, message, manifest if available else None)
     except Exception as exc:
         return UpdateCheck(True, False, f"بررسی امن آپدیت ناموفق بود: {str(exc)[:300]}")
+
+
+def fetch_verified_manifest(manifest_url: str, public_key_b64: str,
+                            channel: str = UPDATE_CHANNEL,
+                            current_version: str = APP_VERSION) -> dict:
+    """Fetch the signed channel manifest even when it describes this version.
+
+    Self-repair uses this to download a clean copy of the currently installed
+    release.  Callers must still verify the downloaded payload before launch.
+    """
+    url = _validate_https_url(manifest_url)
+    request = urllib.request.Request(url, headers={
+        "User-Agent": f"{APP_NAME}/{current_version}",
+        "Cache-Control": "no-cache",
+    })
+    with _opener().open(request, timeout=8) as response:
+        payload = response.read(MAX_MANIFEST_BYTES + 1)
+    if len(payload) > MAX_MANIFEST_BYTES:
+        raise ValueError("مانیفست آپدیت بیش از حد بزرگ است")
+    return verify_manifest(json.loads(payload.decode("utf-8")), public_key_b64, channel)
 
 
 def download_verified_installer(

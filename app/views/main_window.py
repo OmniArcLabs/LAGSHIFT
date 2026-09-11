@@ -36,6 +36,7 @@ from app.views.brand import RoutePrismWidget, make_app_icon
 from app.views.terms_dialog import TermsDialog
 from app.views.app_access import AppAccessWidget
 from app.views.update_dialog import UpdateDialog
+from app.views.traffic_insight import TrafficInsightWidget
 
 
 DARK_STYLE = """
@@ -518,12 +519,14 @@ class MainWindow(QMainWindow):
         self.apps_tab = AppAccessWidget(self.vm)
         self.dns_tab = self._build_dns_tab()
         self.tunnel_tab = self._build_tunnel_tab()
+        self.tools_tab = TrafficInsightWidget()
         self.settings_tab = self._build_settings_tab()
         self.tabs.addTab(self.home_tab, "⌂ خانه")
         self.tabs.addTab(self.games_tab, "🎮 بازی‌ها")
         self.tabs.addTab(self.apps_tab, "🧩 برنامه‌ها")
         self.tabs.addTab(self.dns_tab, "🌐 DNS")
         self.tabs.addTab(self.tunnel_tab, "🛡 اتصال")
+        self.tabs.addTab(self.tools_tab, "🧭 ابزارها")
         self.tabs.addTab(self.settings_tab, "⚙ تنظیمات")
         root.addWidget(self.tabs, 1)
 
@@ -614,6 +617,37 @@ class MainWindow(QMainWindow):
             box.addWidget(metric)
             stats.addWidget(card, 0, column)
         layout.addLayout(stats)
+
+        health = QFrame()
+        health.setObjectName("homeStat")
+        health_box = QVBoxLayout(health)
+        health_head = QHBoxLayout()
+        health_title = QLabel("نبض LAGSHIFT")
+        health_title.setStyleSheet("font-size:15px; font-weight:bold; color:#DFF9FF;")
+        health_head.addWidget(health_title)
+        health_head.addStretch()
+        self.home_health_btn = QPushButton("بررسی سلامت")
+        health_head.addWidget(self.home_health_btn)
+        health_box.addLayout(health_head)
+        health_grid = QGridLayout()
+        health_specs = (
+            ("home_install_health", "نصب", "منتظر بررسی"),
+            ("home_warp_health", "WARP", "در حال شناسایی"),
+            ("home_update_health", "آپدیت", "در حال بررسی"),
+            ("home_recovery_health", "بازگشت امن", "آماده"),
+        )
+        for column, (attr, caption, initial) in enumerate(health_specs):
+            item = QLabel(f"{caption}\n{initial}")
+            item.setWordWrap(True)
+            item.setAlignment(Qt.AlignCenter)
+            item.setStyleSheet(
+                "color:#A9C4D0; background:#09171E; border:1px solid #193641;"
+                "border-radius:10px; padding:8px;"
+            )
+            setattr(self, attr, item)
+            health_grid.addWidget(item, 0, column)
+        health_box.addLayout(health_grid)
+        layout.addWidget(health)
 
         quick_title = QLabel("دسترسی سریع")
         quick_title.setStyleSheet("font-size:15px; font-weight:bold; color:#DFF9FF;")
@@ -1443,6 +1477,7 @@ class MainWindow(QMainWindow):
         security_actions = QGridLayout()
         self.security_quick_btn = QPushButton("بررسی سریع امنیت")
         self.security_full_btn = QPushButton("بررسی کامل همه فایل‌ها")
+        self.install_repair_btn = QPushButton("ترمیم نصب از نسخهٔ تأییدشده")
         self.emergency_reset_btn = QPushButton("بازگردانی اضطراری شبکه")
         self.recovery_receipt_btn = QPushButton("رسید بازیابی")
         self.emergency_reset_btn.setStyleSheet(
@@ -1452,6 +1487,7 @@ class MainWindow(QMainWindow):
         security_actions.addWidget(self.security_full_btn, 0, 1)
         security_actions.addWidget(self.recovery_receipt_btn, 1, 0)
         security_actions.addWidget(self.emergency_reset_btn, 1, 1)
+        security_actions.addWidget(self.install_repair_btn, 2, 0, 1, 2)
         security_layout.addLayout(security_actions)
         layout.addWidget(security_card)
 
@@ -1512,11 +1548,22 @@ class MainWindow(QMainWindow):
         self.tray_icon.setToolTip("LAGSHIFT — لگ‌شیفت")
 
         menu = QMenu()
+        self.tray_status_action = QAction("وضعیت: بدون اتصال فعال", self)
+        self.tray_status_action.setEnabled(False)
         show_action = QAction("نمایش برنامه", self)
         show_action.triggered.connect(self._restore_from_tray)
+        self.tray_disconnect_action = QAction("قطع اتصال فعال", self)
+        self.tray_disconnect_action.setEnabled(False)
+        self.tray_disconnect_action.triggered.connect(self._tray_disconnect)
+        check_update_action = QAction("بررسی آپدیت", self)
+        check_update_action.triggered.connect(lambda: self.vm.check_for_updates(manual=True))
         quit_action = QAction("خروج کامل", self)
         quit_action.triggered.connect(self._quit_app)
+        menu.addAction(self.tray_status_action)
+        menu.addSeparator()
         menu.addAction(show_action)
+        menu.addAction(self.tray_disconnect_action)
+        menu.addAction(check_update_action)
         menu.addSeparator()
         menu.addAction(quit_action)
 
@@ -1566,6 +1613,7 @@ class MainWindow(QMainWindow):
         self.vm.update_check_ready.connect(self._on_update_check_ready)
         self.vm.update_download_progress.connect(self._on_update_download_progress)
         self.vm.update_download_ready.connect(self._on_update_download_ready)
+        self.vm.repair_manifest_ready.connect(self._on_repair_manifest_ready)
 
         self.refresh_btn.clicked.connect(self.vm.refresh_adapters)
         self.toggle_btn.clicked.connect(self._on_toggle_clicked)
@@ -1669,6 +1717,7 @@ class MainWindow(QMainWindow):
         self.blackbox_clear_btn.clicked.connect(self._clear_blackbox_reports)
         self.security_quick_btn.clicked.connect(lambda: self._start_security_audit(False))
         self.security_full_btn.clicked.connect(lambda: self._start_security_audit(True))
+        self.install_repair_btn.clicked.connect(self._prepare_install_repair)
         self.emergency_reset_btn.clicked.connect(self._confirm_emergency_reset)
         self.recovery_receipt_btn.clicked.connect(self._show_recovery_receipt)
         self.auto_update_check.toggled.connect(
@@ -1688,6 +1737,7 @@ class MainWindow(QMainWindow):
         self.home_games_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.games_tab))
         self.home_dns_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.dns_tab))
         self.home_tunnel_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.tunnel_tab))
+        self.home_health_btn.clicked.connect(lambda: self._start_security_audit(False))
         self.reduce_motion_check.toggled.connect(self._on_reduce_motion_changed)
         self.startup_animation_check.toggled.connect(
             lambda value: self._set_setting("startup_animation_enabled", value)
@@ -1774,6 +1824,14 @@ class MainWindow(QMainWindow):
             f"بازیابی {'، '.join(pending_kinds)} در انتظار است"
             if pending_kinds else "تغییر شبکه بازیابی‌نشده‌ای وجود ندارد"
         )
+        if hasattr(self, "home_install_health"):
+            self.home_install_health.setText(
+                "نصب\nسالم" if integrity.get("healthy") else
+                "نصب\nحالت توسعه" if report.get("development_mode") else "نصب\nنیازمند بررسی"
+            )
+            self.home_recovery_health.setText(
+                "بازگشت امن\nدر انتظار" if pending_kinds else "بازگشت امن\nآماده"
+            )
         hijack = report.get("dns_hijack")
         if not hijack:
             dns_security = "برای تست دستکاری DNS ابتدا یک پروفایل را وصل کن"
@@ -1858,6 +1916,32 @@ class MainWindow(QMainWindow):
         self.update_status_label.setText("در حال بررسی کانال امن انتشار…")
         self.vm.check_for_updates(manual=manual)
 
+    def _prepare_install_repair(self):
+        self.install_repair_btn.setEnabled(False)
+        self.install_repair_btn.setText("در حال دریافت مشخصات بستهٔ امن…")
+        self.security_status_label.setText(
+            "نسخهٔ سالم از کانال امضاشده پیدا می‌شود؛ هنوز چیزی نصب یا تغییر نکرده است."
+        )
+        self.vm.prepare_install_repair()
+
+    def _on_repair_manifest_ready(self, result: dict):
+        self.install_repair_btn.setEnabled(True)
+        self.install_repair_btn.setText("ترمیم نصب از نسخهٔ تأییدشده")
+        if not result.get("ok"):
+            message = result.get("message", "بستهٔ ترمیم در دسترس نیست")
+            self.security_status_label.setText(message)
+            self.banner.show_message(message, "error", 7000)
+            return
+        manifest = result.get("manifest") or {}
+        self._pending_update_manifest = manifest
+        self._pending_update_path = ""
+        self.security_status_label.setText(
+            "بستهٔ سالم پیدا شد. پس از دریافت و تأیید SHA-256، نصب‌کننده باز می‌شود؛ "
+            "اطلاعات و تنظیمات شخصی پاک نمی‌شوند."
+        )
+        self.banner.show_message(result.get("message", "بستهٔ ترمیم آماده است"), "success", 5500)
+        self._download_pending_update()
+
     def _on_update_channel_changed(self):
         channel = self.update_channel_combo.currentData() or "stable"
         self._set_setting("update_channel", channel)
@@ -1870,6 +1954,12 @@ class MainWindow(QMainWindow):
         self.check_update_btn.setEnabled(True)
         self.check_update_btn.setText("🔄 بررسی آپدیت")
         self.update_status_label.setText(result.get("message", "نتیجه‌ای دریافت نشد"))
+        if hasattr(self, "home_update_health"):
+            self.home_update_health.setText(
+                "آپدیت\nنسخه تازه آماده" if result.get("available") else
+                "آپدیت\nبه‌روز" if result.get("configured") and "به‌روز" in result.get("message", "")
+                else "آپدیت\nبررسی کامل نشد"
+            )
         previous_manifest = getattr(self, "_pending_update_manifest", {})
         next_manifest = result.get("manifest") or {}
         if (
@@ -2155,6 +2245,7 @@ class MainWindow(QMainWindow):
                 self._set_home_state("idle", "آمادهٔ شناسایی", "هیچ بهینه‌سازی فعالی وجود ندارد.", -1)
         # برای اینکه تغییر QSS بر اساس objectName جدید واقعاً اعمال بشه
         self.toggle_btn.style().unpolish(self.toggle_btn)
+        self._refresh_tray_controls()
         self.toggle_btn.style().polish(self.toggle_btn)
         self._animate_badge()
 
@@ -3256,6 +3347,7 @@ class MainWindow(QMainWindow):
                 self._set_home_state("idle", "آمادهٔ شناسایی", "هیچ بهینه‌سازی فعالی وجود ندارد.", -1)
         self.tunnel_toggle_btn.style().unpolish(self.tunnel_toggle_btn)
         self.tunnel_toggle_btn.style().polish(self.tunnel_toggle_btn)
+        self._refresh_tray_controls()
 
     def _schedule_safety_gate_probe(self):
         if not self.route_auto_rollback_check.isChecked():
@@ -3457,6 +3549,11 @@ class MainWindow(QMainWindow):
         elif result.get("operation") == "disconnect" and result.get("ok") and not active:
             self._official_warp_owned = False
         self._official_warp_active = active
+        if hasattr(self, "home_warp_health") and result.get("operation") != "progress":
+            self.home_warp_health.setText(
+                "WARP\nفعال" if active else "WARP\nنصب نشده" if not installed
+                else "WARP\nآماده" if result.get("signature_valid", installed) else "WARP\nنامعتبر"
+            )
         self.warp_install_btn.setVisible(not installed)
         self.warp_btn.setVisible(installed)
         signature_ok = bool(result.get("signature_valid", installed))
@@ -3488,6 +3585,7 @@ class MainWindow(QMainWindow):
             self.warp_state_label.setStyleSheet("color:#9BB2BC;")
             self.warp_btn.setText("اتصال و تأیید WARP رسمی")
             self.warp_btn.setEnabled(True)
+        self._refresh_tray_controls()
 
     def _on_warp_busy_changed(self, busy: bool):
         self._warp_operation_busy = busy
@@ -3666,6 +3764,32 @@ class MainWindow(QMainWindow):
     def _on_tray_activated(self, reason):
         if reason == QSystemTrayIcon.ActivationReason.Trigger:
             self._restore_from_tray()
+
+    def _refresh_tray_controls(self):
+        if not hasattr(self, "tray_status_action"):
+            return
+        if self._official_warp_active:
+            status = "WARP رسمی فعال است"
+            can_disconnect = self._official_warp_owned
+        elif self.vm.tunnel_connected:
+            status = f"مسیر {self.vm.active_tunnel_name or 'هوشمند'} فعال است"
+            can_disconnect = True
+        elif self.vm.is_connected:
+            status = f"DNS {self.vm.active_profile_name or 'هوشمند'} فعال است"
+            can_disconnect = True
+        else:
+            status = "بدون اتصال فعال"
+            can_disconnect = False
+        self.tray_status_action.setText("وضعیت: " + status)
+        self.tray_disconnect_action.setEnabled(can_disconnect)
+
+    def _tray_disconnect(self):
+        if self._official_warp_active and self._official_warp_owned:
+            self.vm.disconnect_official_warp()
+        elif self.vm.tunnel_connected:
+            self.vm.disconnect_tunnel()
+        elif self.vm.is_connected:
+            self.vm.disconnect_dns()
 
     def _restore_from_tray(self):
         self.showNormal()

@@ -80,6 +80,7 @@ class MainViewModel(QObject):
     update_check_ready = Signal(dict)
     update_download_progress = Signal(int, int)
     update_download_ready = Signal(str, str)
+    repair_manifest_ready = Signal(dict)
     app_catalog_changed = Signal(list)
     app_access_progress = Signal(dict)
     app_access_changed = Signal(dict)
@@ -1233,6 +1234,27 @@ class MainViewModel(QObject):
                 self.update_download_ready.emit(str(path), "")
             except Exception as exc:
                 self.update_download_ready.emit("", str(exc)[:400])
+
+        threading.Thread(target=worker, daemon=True).start()
+
+    def prepare_install_repair(self):
+        """Fetch the current signed release so the installer can repair in place."""
+        def worker():
+            channel = str(settings_service.load_settings().get("update_channel", "stable"))
+            url = update_service.UPDATE_MANIFEST_URLS.get(channel, "")
+            try:
+                manifest = update_service.fetch_verified_manifest(
+                    url, UPDATE_PUBLIC_KEY_B64, channel=channel,
+                )
+                self.repair_manifest_ready.emit({
+                    "ok": True, "manifest": manifest,
+                    "message": "بستهٔ امضاشدهٔ نصب برای ترمیم آمادهٔ دریافت است",
+                })
+            except Exception as exc:
+                self.repair_manifest_ready.emit({
+                    "ok": False,
+                    "message": f"دریافت بستهٔ ترمیم ممکن نشد: {str(exc)[:300]}",
+                })
 
         threading.Thread(target=worker, daemon=True).start()
 

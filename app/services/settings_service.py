@@ -43,6 +43,7 @@ DEFAULTS: Dict[str, Any] = {
     "route_dna_remote_geo": False,
     "route_dna_share_aggregate": False,
     "route_dna_daily_budget_mb": 25,
+    "traffic_insight_history": False,
     "last_update_check": "",
     "terms_accepted_version": "",
     "privacy_acknowledged_version": "",

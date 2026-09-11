@@ -83,6 +83,21 @@ class PackageAclTests(unittest.TestCase):
         self.assertTrue(result["safe"])
 
 
+class RepairManifestTests(unittest.TestCase):
+    @patch("app.services.update_service.verify_manifest")
+    @patch("app.services.update_service._opener")
+    def test_fetch_current_manifest_keeps_verified_payload_for_repair(self, make_opener, verify):
+        response = MagicMock()
+        response.read.return_value = b'{}'
+        make_opener.return_value.open.return_value.__enter__.return_value = response
+        verify.return_value = {"version": app_info.APP_VERSION, "channel": "stable"}
+        result = update_service.fetch_verified_manifest(
+            "https://example.com/manifest.json", "public-key", "stable"
+        )
+        self.assertEqual(result["version"], app_info.APP_VERSION)
+        verify.assert_called_once_with({}, "public-key", "stable")
+
+
 class StatusBannerTests(unittest.TestCase):
     def test_notification_lifetimes_are_bounded_and_severity_aware(self):
         short_info = StatusBanner.recommended_duration("پیام کوتاه", "info")
