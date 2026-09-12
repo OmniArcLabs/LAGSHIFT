@@ -235,6 +235,7 @@ public partial class MainWindow : Window
 
             if (process.ExitCode != 0) throw new InvalidOperationException($"نصب با کد {process.ExitCode} متوقف شد.");
             VerifyInstalledPayload(installPath);
+            VerifyInstalledRuntime(installPath);
 
             SetInstallProgress(100);
             if (MuteInstallerCheck.IsChecked != true) SystemSounds.Asterisk.Play();
@@ -315,6 +316,27 @@ public partial class MainWindow : Window
         };
         if (required.Any(path => !File.Exists(path)))
             throw new InvalidOperationException("مجموعه اجرایی Qt/Python کامل نصب نشد.");
+    }
+
+    private static void VerifyInstalledRuntime(string installPath)
+    {
+        var executable = Path.Combine(installPath, "LAGSHIFT.exe");
+        using var process = Process.Start(new ProcessStartInfo(executable, "--health-check")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            WorkingDirectory = installPath,
+            WindowStyle = ProcessWindowStyle.Hidden
+        }) ?? throw new InvalidOperationException("آزمایش سلامت نسخه جدید اجرا نشد.");
+        if (!process.WaitForExit(20000))
+        {
+            try { process.Kill(); } catch { }
+            throw new InvalidOperationException("نسخه جدید در آزمایش سلامت پاسخ نداد.");
+        }
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException(
+                $"نسخه جدید آزمایش سلامت Qt/Python را نگذرانْد (کد {process.ExitCode})."
+            );
     }
 
     private static async Task ExtractEngineAsync(string path)

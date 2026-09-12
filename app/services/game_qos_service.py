@@ -5,6 +5,8 @@ import hashlib
 import re
 import subprocess
 
+from app.services.process_service import hidden_process_kwargs
+
 from app.app_info import APP_NAME
 from app.services import recovery_service
 
@@ -25,7 +27,7 @@ def _powershell(script: str) -> subprocess.CompletedProcess:
     return subprocess.run(
         ["powershell", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, timeout=8,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        **hidden_process_kwargs(),
     )
 
 

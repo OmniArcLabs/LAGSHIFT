@@ -2,8 +2,8 @@
 
 APP_NAME = "LAGSHIFT"
 APP_DISPLAY_NAME = "LAGSHIFT — لگ‌شیفت"
-APP_VERSION = "1.1.0"
-BUILD_NUMBER = "1100"
+APP_VERSION = "1.2.0"
+BUILD_NUMBER = "1200"
 BRAND_PUBLISHER = "OMNIARC"
 # These values are intentionally empty until the owner approves public/legal
 # identity. Release tooling must fail the Stable gate rather than invent them.
@@ -13,7 +13,7 @@ SUPPORT_URL = "https://github.com/OmniArcLabs/LAGSHIFT/issues"
 DATA_FOLDER_NAME = "LAGSHIFT"
 LEGACY_DATA_FOLDER_NAME = "GameDNS"
 TERMS_VERSION = "1.3"
-PRIVACY_VERSION = "1.3"
+PRIVACY_VERSION = "1.4"
 
 # Public builds intentionally expose only the game-focused product surface.
 # The future private developer build replaces this value during its own build.

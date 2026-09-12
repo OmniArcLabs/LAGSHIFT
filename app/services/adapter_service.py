@@ -7,10 +7,7 @@ import subprocess
 from typing import List
 
 from app.models.network_adapter import NetworkAdapter
-
-
-def _flags() -> int:
-    return subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0
+from app.services.process_service import hidden_process_kwargs
 
 
 def list_adapters() -> List[NetworkAdapter]:
@@ -26,7 +23,7 @@ ConvertTo-Json -InputObject $items -Compress
     result = subprocess.run(
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20,
-        creationflags=_flags(),
+        **hidden_process_kwargs(),
     )
     if result.returncode != 0:
         return _fallback_adapters()

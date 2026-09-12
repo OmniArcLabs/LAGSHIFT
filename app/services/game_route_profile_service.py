@@ -7,6 +7,7 @@ import subprocess
 from datetime import datetime, timezone
 
 from app.services import game_server_probe_service
+from app.services.process_service import hidden_process_kwargs
 
 
 PROFILE_VERSION = 1
@@ -81,14 +82,13 @@ def discover_path_mtu(host: str) -> int | None:
             return 1280
     except ValueError:
         return None
-    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     low, high, best = 1172, 1472, None  # ICMP payload; add 28 bytes for IPv4+ICMP.
     while low <= high:
         middle = (low + high) // 2
         try:
             result = subprocess.run(
                 ["ping", "-n", "1", "-w", "700", "-f", "-l", str(middle), host],
-                capture_output=True, timeout=1.5, creationflags=creation_flags,
+                capture_output=True, timeout=1.5, **hidden_process_kwargs(),
             )
             success = result.returncode == 0
         except (OSError, subprocess.SubprocessError):

@@ -11,9 +11,11 @@ import base64
 import ipaddress
 import json
 import socket
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
+from dataclasses import replace
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
@@ -134,6 +136,10 @@ class TariffResult:
     insecure_path: bool = False
     checked_at: str = ""
     operator_name: str = "نامشخص"
+    operator_source: str = "manual"
+    operator_confidence: str = "نامشخص"
+    external_source: str = ""
+    external_checked: bool = False
 
     def to_dict(self) -> dict:
         return asdict(self)
@@ -257,7 +263,10 @@ def analyze_url(
     *,
     warp_or_vpn_active: bool = False,
     operator_name: str = "نامشخص",
+    operator_source: str = "manual",
+    operator_confidence: str = "نامشخص",
     timeout: float = 5.0,
+    total_timeout: float = 14.0,
     resolver: Callable[[str], tuple[str, ...]] = _resolve_public,
     opener=None,
 ) -> TariffResult:
@@ -267,6 +276,7 @@ def analyze_url(
     requested = sanitize_url(value)
     steps: list[RedirectStep] = []
     visited: set[str] = set()
+    deadline = time.monotonic() + max(3.0, min(30.0, float(total_timeout)))
 
     for _ in range(MAX_REDIRECTS + 1):
         current = sanitize_url(current_request)
@@ -281,7 +291,13 @@ def analyze_url(
         if not addresses or any(not ipaddress.ip_address(item).is_global for item in addresses):
             raise TariffAnalysisError("آدرس‌های محلی و خصوصی قابل بررسی نیستند")
         try:
-            response = _open_once(opener, current_request, max(1.0, min(float(timeout), 12.0)))
+            remaining = deadline - time.monotonic()
+            if remaining <= 0:
+                raise TariffAnalysisError("زمان بررسی مسیر تمام شد؛ لینک یا یکی از واسطه‌ها دیر پاسخ داد")
+            response = _open_once(
+                opener, current_request,
+                max(0.5, min(float(timeout), 8.0, remaining)),
+            )
         except (OSError, urllib.error.URLError) as exc:
             raise TariffAnalysisError("ارتباط امن با سایت برقرار نشد") from exc
         try:
@@ -362,6 +378,8 @@ def analyze_url(
         insecure_path=insecure_path,
         checked_at=datetime.now().astimezone().isoformat(timespec="seconds"),
         operator_name=str(operator_name).strip()[:40] or "نامشخص",
+        operator_source=str(operator_source).strip()[:40] or "manual",
+        operator_confidence=str(operator_confidence).strip()[:24] or "نامشخص",
     )
 
 
@@ -377,6 +395,46 @@ def load_bundled_catalog(path: Path | None = None) -> TariffCatalog:
         return catalog
     except (OSError, json.JSONDecodeError, TariffAnalysisError):
         return TariffCatalog()
+
+
+def merge_external_evidence(result: TariffResult, evidence) -> TariffResult:
+    """Merge third-party evidence without presenting it as an official catalog."""
+    if not getattr(evidence, "available", False):
+        return result
+    source = str(getattr(evidence, "source", "منبع ثالث"))[:40]
+    registered = bool(getattr(evidence, "registered", False))
+    in_iran = bool(getattr(evidence, "in_iran", False))
+    warning = result.warning
+    if result.classification == "unknown" and registered:
+        return replace(
+            result,
+            classification="likely_domestic",
+            title=f"{source} این میزبان را دارای ترافیک داخلی گزارش می‌کند",
+            confidence="متوسط",
+            reasons=(
+                f"{source} میزبان نهایی را ثبت‌شده گزارش کرده است.",
+                "این پاسخ منبع ثالث است و جای استعلام اپراتور یا فهرست رسمی را نمی‌گیرد.",
+            ),
+            external_source=source,
+            external_checked=True,
+        )
+    if result.classification == "domestic" and not registered:
+        extra = f"{source} با فهرست معتبر برنامه هم‌نظر نیست؛ نتیجه را با اپراتور بررسی کن."
+        warning = " ".join(part for part in (warning, extra) if part)
+    elif result.classification == "unknown" and in_iran:
+        return replace(
+            result,
+            title="میزبان داخل ایران است، اما تعرفهٔ داخلی تأیید نشد",
+            reasons=(
+                f"{source} موقعیت میزبان را ایران گزارش کرده، اما آن را ثبت‌شده نمی‌داند.",
+                "میزبانی داخل ایران به‌تنهایی تضمین نیم‌بها بودن نیست.",
+            ),
+            external_source=source,
+            external_checked=True,
+        )
+    return replace(
+        result, warning=warning, external_source=source, external_checked=True
+    )
 
 
 def _canonical_catalog(document: dict) -> bytes:
@@ -473,7 +531,9 @@ def load_history() -> list[dict]:
         host = str(item.get("host", ""))[:253]
         path_hash = str(item.get("path_hash", ""))[:16]
         classification = str(item.get("classification", "unknown"))
-        if host and len(path_hash) == 16 and classification in {"domestic", "mixed", "unknown"}:
+        if host and len(path_hash) == 16 and classification in {
+            "domestic", "likely_domestic", "mixed", "unknown"
+        }:
             clean.append({
                 "host": host,
                 "path_hash": path_hash,

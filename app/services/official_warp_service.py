@@ -11,6 +11,8 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Callable, Iterable
 
+from app.services.process_service import hidden_process_kwargs
+
 TRACE_URL = "https://www.cloudflare.com/cdn-cgi/trace"
 DOWNLOAD_URL = "https://one.one.one.one/"
 _WINDOWS_CANDIDATES = (
@@ -60,7 +62,7 @@ def _run_cli(cli_path: Path, arguments: list[str], timeout_s: float = 16.0):
     return subprocess.run(
         [str(cli_path), "--no-ansi", "--no-paginate", *arguments],
         capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout_s,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        **hidden_process_kwargs(),
     )
 
 
@@ -71,7 +73,7 @@ def _service_is_running() -> bool:
         result = subprocess.run(
             ["sc.exe", "query", "CloudflareWARP"], stdout=subprocess.PIPE,
             stderr=subprocess.DEVNULL, timeout=5,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            **hidden_process_kwargs(),
         )
         return result.returncode == 0 and b"RUNNING" in result.stdout.upper()
     except (OSError, subprocess.SubprocessError):
@@ -96,7 +98,7 @@ def _signature_is_cloudflare(cli_path: Path) -> bool:
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=12,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            **hidden_process_kwargs(),
         )
         return result.returncode == 0
     except (OSError, subprocess.SubprocessError):

@@ -48,6 +48,9 @@ DEFAULTS: Dict[str, Any] = {
     "route_dna_share_aggregate": False,
     "route_dna_daily_budget_mb": 25,
     "traffic_insight_history": False,
+    "traffic_operator_mode": "manual",
+    "traffic_operator_manual": "نامشخص",
+    "traffic_linkirani_enabled": False,
     "last_update_check": "",
     "terms_accepted_version": "",
     "privacy_acknowledged_version": "",
@@ -82,6 +85,12 @@ def load_settings() -> Dict[str, Any]:
             # interrupt them after upgrading merely because this key is new.
             if "onboarding_completed" not in data and data.get("brand_intro_seen"):
                 merged["onboarding_completed"] = True
+            # The 1.4 privacy notice introduces two optional third-party
+            # lookups.  A value saved by a development build must never turn
+            # either lookup on before the user has seen the current notice.
+            if data.get("privacy_acknowledged_version") != PRIVACY_VERSION:
+                merged["traffic_operator_mode"] = "manual"
+                merged["traffic_linkirani_enabled"] = False
             if not ALLOW_GAMELINK:
                 merged["turbo_mode"] = False
                 merged["gamelink_api_url"] = ""

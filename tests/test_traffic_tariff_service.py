@@ -6,6 +6,7 @@ from pathlib import Path
 from unittest.mock import MagicMock
 
 from app.services import traffic_tariff_service as tariff
+from app.services import linkirani_service, operator_detection_service, settings_service
 from cryptography.hazmat.primitives.asymmetric.ed25519 import Ed25519PrivateKey
 from cryptography.hazmat.primitives.serialization import Encoding, PublicFormat
 
@@ -24,6 +25,66 @@ class _Response:
 
 
 class TrafficTariffTests(unittest.TestCase):
+    @staticmethod
+    def _json_opener(document):
+        response = MagicMock()
+        response.__enter__.return_value = response
+        response.read.return_value = json.dumps(document).encode("utf-8")
+        opener = MagicMock(return_value=response)
+        return opener
+
+    def test_operator_detection_discards_ip_and_maps_known_provider(self):
+        opener = self._json_opener({
+            "clientIp": "203.0.113.9", "asn": 44244,
+            "asOrganization": "Mobile Communication Company of Iran",
+            "country": "IR", "region": "Tehran",
+        })
+        hint = operator_detection_service.detect(opener=opener)
+        self.assertEqual(hint.name, "همراه اول")
+        self.assertEqual(hint.asn, "AS44244")
+        self.assertNotIn("203.0.113.9", str(hint))
+        request = opener.call_args.args[0]
+        self.assertEqual(request.headers["Origin"], "https://speed.cloudflare.com")
+        self.assertIn("LAGSHIFT", request.headers["User-agent"])
+
+    def test_operator_auto_detection_is_skipped_behind_tunnel(self):
+        opener = MagicMock()
+        hint = operator_detection_service.detect(tunnel_active=True, opener=opener)
+        self.assertEqual(hint.source, "tunnel-active")
+        opener.assert_not_called()
+
+    def test_external_traffic_lookups_are_opt_in_by_default(self):
+        self.assertEqual(settings_service.DEFAULTS["traffic_operator_mode"], "manual")
+        self.assertFalse(settings_service.DEFAULTS["traffic_linkirani_enabled"])
+
+    def test_linkirani_sends_only_origin_without_path_or_token(self):
+        opener = self._json_opener({
+            "isRegistered": True, "isInIran": True, "ipCountryCode": "ir",
+            "link": {"netloc": {"value": "cdn.example.ir"}},
+        })
+        evidence = linkirani_service.check(
+            "https://cdn.example.ir/private/file.zip?token=secret", opener=opener
+        )
+        requested = opener.call_args.args[0].full_url
+        self.assertTrue(evidence.available)
+        self.assertNotIn("private", requested)
+        self.assertNotIn("secret", requested)
+        self.assertIn("cdn.example.ir", requested)
+
+    def test_linkirani_registered_result_is_labeled_probable_not_official(self):
+        base = tariff.TariffResult(
+            requested_url="https://example.ir/", final_url="https://example.ir/",
+            classification="unknown", title="نامشخص", confidence="نامشخص",
+            reasons=("فهرست خالی است",),
+        )
+        evidence = linkirani_service.LinkIraniEvidence(
+            available=True, registered=True, in_iran=True, host="example.ir"
+        )
+        merged = tariff.merge_external_evidence(base, evidence)
+        self.assertEqual(merged.classification, "likely_domestic")
+        self.assertEqual(merged.external_source, "LinkIrani")
+        self.assertNotEqual(merged.classification, "domestic")
+
     def test_sanitize_removes_query_fragment_and_rejects_credentials(self):
         self.assertEqual(
             tariff.sanitize_url("https://Example.com/file.zip?token=secret#part"),

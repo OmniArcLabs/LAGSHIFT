@@ -11,6 +11,7 @@ import time
 import psutil
 
 from app.services import connectivity_service, game_server_probe_service
+from app.services.process_service import hidden_process_kwargs
 from app.app_info import APP_NAME
 
 
@@ -60,11 +61,10 @@ def ping_matrix(endpoint: dict, attempts: int = 3) -> dict:
 
 
 def default_gateway() -> str:
-    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         result = subprocess.run(
             ["route", "print", "-4", "0.0.0.0"], capture_output=True, text=True,
-            timeout=3, creationflags=creation_flags,
+            timeout=3, **hidden_process_kwargs(),
         )
         matches = re.findall(
             r"^\s*0\.0\.0\.0\s+0\.0\.0\.0\s+((?:\d{1,3}\.){3}\d{1,3})\s+",
@@ -89,11 +89,10 @@ def adapter_health() -> list[dict]:
 
 def wifi_link_info(adapter_name: str = "") -> dict:
     """Read the local WLAN radio state without storing SSID/BSSID values."""
-    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"], capture_output=True, text=True,
-            timeout=3, creationflags=creation_flags, errors="replace",
+            timeout=3, errors="replace", **hidden_process_kwargs(),
         )
         text = result.stdout or ""
         # Netsh labels can be localized, so numeric signal/rate patterns are
@@ -146,12 +145,11 @@ def _cgnat_from_hops(hops: list[str]) -> str:
 
 
 def cgnat_hint() -> str:
-    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         result = subprocess.run(
             ["tracert", "-d", "-h", "4", "-w", "350", "1.1.1.1"],
             capture_output=True, text=True, timeout=4,
-            creationflags=creation_flags, errors="replace",
+            errors="replace", **hidden_process_kwargs(),
         )
         hops = re.findall(r"(?<![\d.])(?:\d{1,3}\.){3}\d{1,3}(?![\d.])", result.stdout or "")
         return _cgnat_from_hops(hops)

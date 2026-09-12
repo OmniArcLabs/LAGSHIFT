@@ -11,6 +11,36 @@ from app.views.terms_dialog import TermsDialog
 from app.views.onboarding_dialog import OnboardingDialog
 
 
+HEALTH_CHECK_FLAG = "--health-check"
+
+
+def run_health_check() -> int:
+    """Import the complete UI/runtime without opening a window or user state.
+
+    The installer runs this before deleting its rollback copy. A mixed or
+    incomplete Qt/Python runtime therefore fails the update immediately rather
+    than surprising the user on the next normal launch.
+    """
+    try:
+        import PySide6
+        import shiboken6
+        from PySide6 import QtCore, QtGui, QtWidgets
+        from app.services import integrity_service
+
+        if not all((PySide6.__version__, shiboken6.__version__, QtCore.qVersion())):
+            return 12
+        # Importing the main modules above exercises QtCore/Gui/Widgets and all
+        # compiled shiboken bindings. The packaged integrity check adds a fast
+        # file-level signal when its catalog is available.
+        result = integrity_service.verify_catalog(full=False)
+        if result.get("available") and not result.get("healthy"):
+            return 13
+        _ = (QtGui.QIcon, QtWidgets.QApplication, MainWindow)
+        return 0
+    except Exception:
+        return 11
+
+
 class NoDottedFocusStyle(QProxyStyle):
     """Keep keyboard focus working while removing Windows' dotted text rectangle."""
 
@@ -31,6 +61,8 @@ class UiBreadcrumbFilter(QObject):
 
 
 def main():
+    if HEALTH_CHECK_FLAG in sys.argv:
+        raise SystemExit(run_health_check())
     if privileged_helper.HELPER_FLAG in sys.argv:
         index = sys.argv.index(privileged_helper.HELPER_FLAG)
         if len(sys.argv) != index + 3:

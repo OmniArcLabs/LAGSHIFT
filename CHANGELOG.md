@@ -6,7 +6,30 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 
 ## [Unreleased]
 
-No public changes yet.
+### Added
+
+- Added an installed-runtime health check so the Windows bootstrapper verifies
+  Qt, Python and packaged integrity before deleting its rollback copy.
+- Added opt-in ISP detection through Cloudflare metadata while discarding the
+  returned client IP, with manual operator selection remaining authoritative.
+- Added an optional, host-only LinkIrani lookup whose third-party result is
+  always labeled probable rather than official billing evidence.
+- Added simple live progress and an expandable technical view to Traffic Insight.
+
+### Changed
+
+- Bounded AppRoute to three DNS candidates, one elevation session and a shorter
+  WARP fallback budget, including immediate cancellation propagation.
+- Centralized hidden Windows child-process settings for network diagnostics to
+  prevent console windows and taskbar flashes.
+- Updated the privacy notice to 1.4 and made all new external lookups opt-in.
+
+### Fixed
+
+- Added a non-animated hard expiry path that removes status banners even when a
+  Qt opacity-animation callback is lost.
+- Failed updates now roll back when the newly installed Qt/Python runtime cannot
+  complete its own health check.
 
 ## [1.1.0] - 2026-09-11
 

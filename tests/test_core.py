@@ -145,6 +145,13 @@ class StatusBannerTests(unittest.TestCase):
         banner._collapse_timer.start.assert_not_called()
         banner._fade_anim.start.assert_not_called()
 
+    def test_hard_expiry_collapses_without_restarting_animation(self):
+        banner = MagicMock()
+        banner._message_generation = 8
+        StatusBanner._hard_expire_current(banner)
+        banner._collapse.assert_called_once_with(8)
+        banner._fade_out.assert_not_called()
+
     def test_startup_animation_never_replaces_banner_owned_effect(self):
         source = (Path(__file__).resolve().parents[1] / "app" / "views" / "main_window.py").read_text(
             encoding="utf-8"
@@ -615,6 +622,27 @@ class RouteDnaTests(unittest.TestCase):
 
 
 class ProductFoundationTests(unittest.TestCase):
+    def test_installer_runs_packaged_runtime_health_check_before_success(self):
+        source = (Path(__file__).resolve().parents[1] / "installer" / "bootstrapper" /
+                  "MainWindow.xaml.cs").read_text(encoding="utf-8")
+        install_block = source[source.index("private async Task InstallAsync"):source.index(
+            "private static void ValidateInstallPath"
+        )]
+        self.assertIn("VerifyInstalledPayload(installPath);", install_block)
+        self.assertIn("VerifyInstalledRuntime(installPath);", install_block)
+        self.assertIn('"--health-check"', source)
+
+    def test_app_access_has_one_uac_and_bounded_fallbacks(self):
+        source = (Path(__file__).resolve().parents[1] / "app" / "viewmodels" /
+                  "main_viewmodel.py").read_text(encoding="utf-8")
+        block = source[source.index("def start_app_access"):source.index(
+            "def wait_for_app_access"
+        )]
+        self.assertEqual(block.count("privileged_helper.select_dns("), 1)
+        self.assertIn("ranking = ranking[:3]", block)
+        self.assertIn("total_budget_s=16", block)
+        self.assertIn("cancelled=cancelled", block)
+
     def test_public_edition_does_not_enable_custom_tunnels(self):
         self.assertEqual(app_info.EDITION, "public")
         self.assertFalse(app_info.ALLOW_CUSTOM_TUNNELS)
@@ -634,7 +662,12 @@ class ProductFoundationTests(unittest.TestCase):
         signature_probe = source[source.index("def _signature_is_cloudflare"):source.index(
             "def _cli_output"
         )]
-        self.assertIn('creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0)', signature_probe)
+        self.assertIn("**hidden_process_kwargs()", signature_probe)
+        helper = (Path(__file__).resolve().parents[1] / "app" / "services" /
+                  "process_service.py").read_text(encoding="utf-8")
+        self.assertIn("CREATE_NO_WINDOW", helper)
+        self.assertIn("STARTF_USESHOWWINDOW", helper)
+        self.assertIn("SW_HIDE", helper)
 
     def test_legacy_data_is_copied_without_deleting_the_source(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(
@@ -729,6 +762,20 @@ class ProductFoundationTests(unittest.TestCase):
             os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
         ):
             self.assertFalse(settings_service.load_settings()["onboarding_completed"])
+
+    def test_new_external_lookups_are_reset_until_current_privacy_is_accepted(self):
+        with tempfile.TemporaryDirectory() as folder, patch.dict(
+            os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
+        ):
+            settings_service.save_settings({
+                **settings_service.DEFAULTS,
+                "privacy_acknowledged_version": "1.3",
+                "traffic_operator_mode": "auto",
+                "traffic_linkirani_enabled": True,
+            })
+            settings = settings_service.load_settings()
+            self.assertEqual(settings["traffic_operator_mode"], "manual")
+            self.assertFalse(settings["traffic_linkirani_enabled"])
 
     def test_public_stable_ignores_stale_cloud_preferences(self):
         with tempfile.TemporaryDirectory() as folder, patch.dict(

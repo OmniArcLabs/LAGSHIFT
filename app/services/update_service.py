@@ -22,6 +22,7 @@ from app.app_info import (
     APP_NAME, APP_VERSION, UPDATE_CHANNEL, UPDATE_MANIFEST_URLS,
     UPDATE_PUBLIC_KEY_B64,
 )
+from app.services.process_service import hidden_process_kwargs
 from app.services import app_paths
 
 
@@ -289,7 +290,7 @@ def has_valid_authenticode(path: Path) -> bool:
         result = subprocess.run(
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=10,
-            creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+            **hidden_process_kwargs(),
         )
         return result.returncode == 0 and result.stdout.strip().lower() == "valid"
     except (OSError, subprocess.SubprocessError):

@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Optional
 
 from app.services import app_paths, secure_storage, recovery_service
+from app.services.process_service import hidden_process_kwargs
 
 
 _last_error = ""
@@ -71,7 +72,7 @@ def _run(cmd: list[str], timeout: int = 15) -> subprocess.CompletedProcess:
     return subprocess.run(
         cmd, capture_output=True, text=True, encoding="utf-8", errors="ignore",
         timeout=timeout,
-        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+        **hidden_process_kwargs(),
     )
 
 
@@ -82,7 +83,7 @@ def _powershell(script: str, adapter_name: str) -> subprocess.CompletedProcess:
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20,
         env=environment,
-        creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+        **hidden_process_kwargs(),
     )
 
 
@@ -150,7 +151,7 @@ def _set_dns_direct(adapter_name: str, primary: str, secondary: Optional[str] = 
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20,
             env=environment,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+            **hidden_process_kwargs(),
         )
         if result.returncode != 0:
             _set_last_error(_process_error(result, "ویندوز تغییر DNS را نپذیرفت"))
@@ -213,7 +214,7 @@ def _restore_original_dns_direct(adapter_name: str | None = None) -> bool:
             ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
             capture_output=True, text=True, encoding="utf-8", errors="ignore", timeout=20,
             env=environment,
-            creationflags=subprocess.CREATE_NO_WINDOW if hasattr(subprocess, "CREATE_NO_WINDOW") else 0,
+            **hidden_process_kwargs(),
         )
         if result.returncode == 0:
             _run(["ipconfig", "/flushdns"])

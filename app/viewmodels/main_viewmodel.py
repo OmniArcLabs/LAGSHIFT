@@ -707,17 +707,17 @@ class MainViewModel(QObject):
                     ranking = route_dna_service.personalize_ranked_dns(
                         ranking, route_context, profile.id
                     )
-                # Four pre-ranked candidates are enough for App Access.  A hard
+                # Three pre-ranked candidates are enough for App Access.  A hard
                 # cap prevents a degraded network from turning one click into
                 # several minutes of retries.
-                ranking = ranking[:4]
+                ranking = ranking[:3]
                 dns_failure = "هیچ DNS مناسبی پاسخ معتبر نداد"
                 if ranking and not privileged_helper.is_admin():
-                    shortlisted = ranking[:4]
+                    shortlisted = ranking[:3]
                     self.app_access_progress.emit({
                         "phase": "verify", "step": 3, "total": 4,
                         "message": (
-                            "یک‌بار اجازه مدیر را تأیید کن؛ حداکثر ۴ DNS برتر داخل همان "
+                            "یک‌بار اجازه مدیر را تأیید کن؛ حداکثر ۳ DNS برتر داخل همان "
                             "پنجره و با سقف زمانی مشخص آزمایش می‌شوند."
                         ),
                     })
@@ -895,8 +895,9 @@ class MainViewModel(QObject):
                     warp_result = official_warp_service.connect_best(
                         modes=modes,
                         max_attempts=2,
-                        total_budget_s=22,
+                        total_budget_s=16,
                         verify_attempts=2,
+                        cancelled=cancelled,
                         progress=lambda message: self.app_access_progress.emit({
                             "phase": "warp", "step": 4, "total": 4,
                             "message": message,

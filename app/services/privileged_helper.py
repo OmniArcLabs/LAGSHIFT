@@ -164,7 +164,7 @@ def run_helper(request_path: str, response_path: str) -> int:
             tested = 0
             started = time.monotonic()
             for index, candidate in enumerate(candidates, start=1):
-                if time.monotonic() - started > 35:
+                if time.monotonic() - started > 24:
                     failures.append("بودجه زمانی آزمایش DNS تمام شد")
                     break
                 _write_result(progress_path, {
@@ -282,7 +282,7 @@ def request(operation: str, adapter: str, servers: list[str] | None = None,
 
 
 def select_dns(adapter: str, candidates: list[dict], domains: list[str],
-               progress=None, timeout_s: float = 55.0) -> dict:
+               progress=None, timeout_s: float = 30.0) -> dict:
     """Apply and verify several DNS candidates inside one bounded UAC session."""
     progress = progress or (lambda _row: None)
     if sys.platform != "win32":

@@ -16,6 +16,7 @@ from concurrent.futures import ThreadPoolExecutor
 import psutil
 
 from app.services import connectivity_service, quality_service
+from app.services.process_service import hidden_process_kwargs
 
 
 ANTI_CHEAT_MARKERS = (
@@ -287,11 +288,10 @@ def capture_game_udp_endpoints_pktmon(process_name: str, duration_s: float = 1.5
     local_ports = game_udp_local_ports(process_name)
     if not local_ports:
         return []
-    flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         status = subprocess.run(
             ["pktmon", "status"], capture_output=True, text=True, timeout=3,
-            creationflags=flags,
+            **hidden_process_kwargs(),
         )
         status_text = (status.stdout + status.stderr).lower()
         if status.returncode == 0 and any(word in status_text for word in ("running", "collecting")):
@@ -308,18 +308,18 @@ def capture_game_udp_endpoints_pktmon(process_name: str, duration_s: float = 1.5
         result = subprocess.run(
             ["pktmon", "start", "--capture", "--comp", "nics", "--pkt-size", "96",
              "--file-name", str(etl_path), "--file-size", "8", "--log-mode", "circular"],
-            capture_output=True, text=True, timeout=5, creationflags=flags,
+            capture_output=True, text=True, timeout=5, **hidden_process_kwargs(),
         )
         if result.returncode != 0:
             return []
         started = True
         time.sleep(max(0.3, min(4.0, duration_s)))
         subprocess.run(["pktmon", "stop"], capture_output=True, timeout=5,
-                       creationflags=flags)
+                       **hidden_process_kwargs())
         started = False
         converted = subprocess.run(
             ["pktmon", "etl2pcap", str(etl_path), "--out", str(pcap_path)],
-            capture_output=True, text=True, timeout=8, creationflags=flags,
+            capture_output=True, text=True, timeout=8, **hidden_process_kwargs(),
         )
         if converted.returncode != 0 or not pcap_path.exists():
             return []
@@ -338,7 +338,7 @@ def capture_game_udp_endpoints_pktmon(process_name: str, duration_s: float = 1.5
         if started:
             try:
                 subprocess.run(["pktmon", "stop"], capture_output=True, timeout=5,
-                               creationflags=flags)
+                               **hidden_process_kwargs())
             except (OSError, subprocess.SubprocessError):
                 pass
         for path in (etl_path, pcap_path):
@@ -349,12 +349,11 @@ def capture_game_udp_endpoints_pktmon(process_name: str, duration_s: float = 1.5
 
 
 def _icmp_sample(host: str, timeout_ms: int = 900) -> int:
-    creation_flags = getattr(subprocess, "CREATE_NO_WINDOW", 0)
     try:
         completed = subprocess.run(
             ["ping", "-n", "1", "-w", str(timeout_ms), host],
             capture_output=True, text=True, timeout=(timeout_ms / 1000) + 1,
-            creationflags=creation_flags,
+            **hidden_process_kwargs(),
         )
     except (OSError, subprocess.SubprocessError):
         return -1

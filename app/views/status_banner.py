@@ -2,7 +2,7 @@
 import time
 
 from PySide6.QtCore import QPropertyAnimation, QTimer, Qt, QEasingCurve
-from PySide6.QtWidgets import QLabel, QGraphicsOpacityEffect
+from PySide6.QtWidgets import QLabel, QGraphicsOpacityEffect, QSizePolicy
 
 
 COLORS = {
@@ -29,6 +29,8 @@ class StatusBanner(QLabel):
         super().__init__(parent)
         self.setAlignment(Qt.AlignCenter)
         self.setWordWrap(True)
+        self.setSizePolicy(QSizePolicy.Expanding, QSizePolicy.Fixed)
+        self.setVisible(False)
         self.setFixedHeight(0)
         self.setStyleSheet("border-radius: 8px; padding: 0px;")
 
@@ -49,6 +51,12 @@ class StatusBanner(QLabel):
         self._collapse_timer = QTimer(self)
         self._collapse_timer.setSingleShot(True)
         self._collapse_timer.timeout.connect(self._collapse_current)
+
+        # This timer never animates.  It is the final authority that removes a
+        # notification even if a graphics driver drops animation callbacks.
+        self._hard_expiry_timer = QTimer(self)
+        self._hard_expiry_timer.setSingleShot(True)
+        self._hard_expiry_timer.timeout.connect(self._hard_expire_current)
 
         self._message_generation = 0
         self._deadline = 0.0
@@ -122,6 +130,7 @@ class StatusBanner(QLabel):
         # fade so an older completion cannot leave the new message stuck/open.
         self._hide_timer.stop()
         self._collapse_timer.stop()
+        self._hard_expiry_timer.stop()
         self._ensure_effect()
         self._fade_anim.stop()
         bg, border = COLORS.get(kind, COLORS["info"])
@@ -131,6 +140,7 @@ class StatusBanner(QLabel):
         )
         self.setText(text)
         self._current_kind = kind
+        self.setVisible(True)
         self.setFixedHeight(42)
 
         if self._reduce_motion:
@@ -150,6 +160,7 @@ class StatusBanner(QLabel):
         while len(self._recent_messages) > RECENT_MESSAGE_LIMIT:
             self._recent_messages.pop(next(iter(self._recent_messages)))
         self._hide_timer.start(duration)
+        self._hard_expiry_timer.start(duration + 900)
         if not self._expiry_watchdog.isActive():
             self._expiry_watchdog.start()
 
@@ -207,16 +218,22 @@ class StatusBanner(QLabel):
             return
         self._hide_timer.stop()
         self._collapse_timer.stop()
+        self._hard_expiry_timer.stop()
         self._expiry_watchdog.stop()
         self._ensure_effect()
         self._fade_anim.stop()
         self._effect.setOpacity(0.0)
         self.setFixedHeight(0)
+        self.setVisible(False)
         self.clear()
         self._deadline = 0.0
         self._fading_out = False
 
     def _collapse_current(self):
+        self._collapse(self._message_generation)
+
+    def _hard_expire_current(self):
+        """Collapse directly; never restart a fade or extend the lifetime."""
         self._collapse(self._message_generation)
 
     def _on_fade_finished(self):

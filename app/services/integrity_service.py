@@ -9,6 +9,8 @@ import subprocess
 import sys
 from pathlib import Path
 
+from app.services.process_service import hidden_process_kwargs
+
 
 _SHA256 = re.compile(r"^[0-9a-f]{64}$")
 _QUICK_FILES = {
@@ -120,7 +122,7 @@ $acl=Get-Acl -LiteralPath $env:LAGSHIFT_ACL_ROOT
         ["powershell.exe", "-NoProfile", "-NonInteractive", "-Command", script],
         capture_output=True, text=True, encoding="utf-8", errors="ignore",
         timeout=8, env=environment,
-        creationflags=getattr(subprocess, "CREATE_NO_WINDOW", 0),
+        **hidden_process_kwargs(),
     )
     if result.returncode != 0:
         raise OSError((result.stderr or "ACL query failed")[-240:])

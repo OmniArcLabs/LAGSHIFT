@@ -25,7 +25,7 @@ foreach ($scale in @('1', '1.25', '1.5', '2')) {
     $alive = $false
     $responsive = $false
     $attempts = 0
-    while ($attempts -lt 2 -and (-not $alive -or -not $responsive)) {
+    while ($attempts -lt 3 -and (-not $alive -or -not $responsive)) {
         $attempts++
         $process = [Diagnostics.Process]::Start($start)
         Start-Sleep -Seconds 8
@@ -36,7 +36,7 @@ foreach ($scale in @('1', '1.25', '1.5', '2')) {
             $process.WaitForExit(5000) | Out-Null
         }
         # A packaged Qt process may release font/plugin handles slightly after
-        # process exit. Retry once and leave a wider deterministic gap so a
+        # process exit. Retry twice and leave a wider deterministic gap so a
         # transient launch race is not misreported as a DPI rendering failure.
         Start-Sleep -Milliseconds 2500
     }
