@@ -1,4 +1,7 @@
 PySide6==6.8.3
 psutil==7.2.2
-cryptography==50.0.1
+# 47+ can bind EVP_DigestSqueeze on Intel CI while PyInstaller collects an
+# older libcrypto from another framework. 46.0.7 is the final release line
+# before that ABI change and still provides the AES-GCM/Ed25519 APIs we use.
+cryptography==46.0.7
 pyinstaller==6.16.0

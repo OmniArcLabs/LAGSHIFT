@@ -29,7 +29,13 @@ jobs:
           python-version: "3.12"
           cache: pip
       - name: Install locked build dependencies
-        run: python -m pip install -r requirements-macos-build.txt
+        run: python -m pip install --only-binary=:all: -r requirements-macos-build.txt
+      - name: Verify cryptography runtime
+        run: >-
+          python -c "from cryptography.hazmat.backends.openssl.backend import backend;
+          from cryptography.hazmat.primitives.ciphers.aead import AESGCM;
+          print('cryptography OpenSSL:', backend.openssl_version_text());
+          AESGCM.generate_key(bit_length=256)"
       - name: Run tests
         run: >-
           python -m unittest -v
