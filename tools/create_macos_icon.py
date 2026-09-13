@@ -6,7 +6,7 @@ import sys
 from pathlib import Path
 
 from PySide6.QtCore import QRectF, QSize
-from PySide6.QtGui import QGuiApplication, QImage, QPainter
+from PySide6.QtGui import QImage, QPainter
 from PySide6.QtSvg import QSvgRenderer
 
 
@@ -32,7 +32,6 @@ def main() -> int:
     iconset = root / "build/macos/LAGSHIFT.iconset"
     output = root / "build/macos/LAGSHIFT.icns"
     iconset.mkdir(parents=True, exist_ok=True)
-    app = QGuiApplication.instance() or QGuiApplication([])
     renderer = QSvgRenderer(str(source))
     if not renderer.isValid():
         raise RuntimeError("Brand SVG could not be rendered")
