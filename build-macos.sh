@@ -17,6 +17,7 @@ fi
 # Free ad-hoc signing seals every nested binary. It is not Apple notarization.
 /usr/bin/codesign --force --deep --sign - "$APP"
 /usr/bin/codesign --verify --deep --strict "$APP"
+trap - ERR
 set +e
 HEALTH_OUTPUT="$("$APP/Contents/MacOS/LAGSHIFT" --health-check 2>&1)"
 HEALTH_STATUS=$?
@@ -28,6 +29,7 @@ if [[ $HEALTH_STATUS -ne 0 ]]; then
   echo "::error title=Packaged Intel/ARM health check failed::${HEALTH_OUTPUT:0:3000}"
   exit "$HEALTH_STATUS"
 fi
+trap 'status=$?; echo "::error title=macOS package command failed::${BASH_COMMAND} exited with ${status}"; exit "$status"' ERR
 
 ARCH="$(uname -m)"
 ZIP="$ROOT/dist/LAGSHIFT-1.2.0-macOS-$ARCH.zip"
