@@ -1,11 +1,11 @@
 {
-  "version": "1.1.0",
+  "version": "1.2.0",
   "channel": "stable",
-  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.1.0/LAGSHIFT-1.1.0-Setup-Light.exe",
-  "sha256": "fee98ad8715cfb796936fa64fae3cf10827511fb62ac57bb8a95acc5df2b67b8",
-  "size": 38082048,
-  "notes": "به‌روزرسانی Intelligence: تشخیص محافظه‌کار تعرفه داخلی، پنل ابزارها و سلامت، راه‌اندازی اولیه، ترمیم نصب و گزارش امن GitHub.",
+  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.2.0/LAGSHIFT-1.2.0-Setup-Light.exe",
+  "sha256": "ca2d9c6b5e370b29db2ae3b0448a9ef804d11a5cc6c4162fd4323ddf2af30969",
+  "size": 38118912,
+  "notes": "به‌روزرسانی پایداری ویندوز: نصب و بازیابی امن‌تر، اعلان‌های قابل‌اعتماد، AppRoute سریع‌تر، تشخیص رهگیری DNS و بهبود راهنمای تعرفه داخلی.",
   "mandatory": false,
-  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.1.0",
-  "signature": "sA4HAO1QaH8MbbLfNm/auWqRAiSUl3XVGEhRoN2GX1MY/y68r1cvYdSF8LtNp1Gz9BgaEhTLv39PZT5N0W5iDA=="
+  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.2.0",
+  "signature": "LV2gSoGuD4R3CBtltbhg9oEixsyxiRb4XZ+6th/qyDJ6/klXpB/CyD/mvV9z1zd9MJyXhIAlJhpaV9c9PJKMCw=="
 }
