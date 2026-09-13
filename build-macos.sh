@@ -1,5 +1,6 @@
 #!/bin/bash
-set -euo pipefail
+set -Eeuo pipefail
+trap 'status=$?; echo "::error title=macOS package command failed::${BASH_COMMAND} exited with ${status}"; exit "$status"' ERR
 
 ROOT="$(cd "$(dirname "$0")" && pwd)"
 cd "$ROOT"
