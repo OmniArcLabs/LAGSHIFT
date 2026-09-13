@@ -6,6 +6,7 @@ import re
 import socket
 import statistics
 import subprocess
+import sys
 import time
 
 import psutil
@@ -62,6 +63,13 @@ def ping_matrix(endpoint: dict, attempts: int = 3) -> dict:
 
 def default_gateway() -> str:
     try:
+        if sys.platform == "darwin":
+            result = subprocess.run(
+                ["/sbin/route", "-n", "get", "default"], capture_output=True,
+                text=True, timeout=3, **hidden_process_kwargs(),
+            )
+            match = re.search(r"^\s*gateway:\s*(\S+)", result.stdout, re.MULTILINE)
+            return match.group(1) if match else ""
         result = subprocess.run(
             ["route", "print", "-4", "0.0.0.0"], capture_output=True, text=True,
             timeout=3, **hidden_process_kwargs(),
@@ -90,6 +98,11 @@ def adapter_health() -> list[dict]:
 def wifi_link_info(adapter_name: str = "") -> dict:
     """Read the local WLAN radio state without storing SSID/BSSID values."""
     try:
+        if sys.platform == "darwin":
+            # CoreWLAN's private airport utility is not stable across macOS
+            # releases. Link details remain unknown instead of being guessed.
+            return {"available": False, "signal_pct": None, "rx_mbps": None,
+                    "tx_mbps": None, "weak": False}
         result = subprocess.run(
             ["netsh", "wlan", "show", "interfaces"], capture_output=True, text=True,
             timeout=3, errors="replace", **hidden_process_kwargs(),
@@ -146,8 +159,13 @@ def _cgnat_from_hops(hops: list[str]) -> str:
 
 def cgnat_hint() -> str:
     try:
+        command = (
+            ["/usr/sbin/traceroute", "-n", "-m", "4", "-w", "1", "1.1.1.1"]
+            if sys.platform == "darwin" else
+            ["tracert", "-d", "-h", "4", "-w", "350", "1.1.1.1"]
+        )
         result = subprocess.run(
-            ["tracert", "-d", "-h", "4", "-w", "350", "1.1.1.1"],
+            command,
             capture_output=True, text=True, timeout=4,
             errors="replace", **hidden_process_kwargs(),
         )

@@ -11,6 +11,7 @@ from PySide6.QtWidgets import (
 )
 
 from app.services import app_access_service
+from app.platform_info import PLATFORM_LABEL
 
 
 class AppRouteFlow(QWidget):
@@ -58,7 +59,7 @@ class AppRouteFlow(QWidget):
             painter.drawLine(int(xs[0]), y, int(xs[end_index]), y)
 
         labels = (
-            ("دستگاه تو", "Windows", "#62DFFF"),
+            ("دستگاه تو", PLATFORM_LABEL, "#62DFFF"),
             ("DNS هوشمند", self.dns_name, "#62DFFF"),
             ("WARP رسمی", self.warp_label, "#718894" if self.warp_label != "فعال و تأییدشده" else "#79EDB5"),
             (self.app_name, "سرویس مقصد", "#79EDB5" if self.verified else "#62DFFF"),

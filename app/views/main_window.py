@@ -2,8 +2,12 @@
 import sys
 import math
 import ctypes
-import ctypes.wintypes
-import winsound
+if sys.platform == "win32":
+    import ctypes.wintypes
+try:
+    import winsound
+except ImportError:  # macOS
+    winsound = None
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QPropertyAnimation, QEasingCurve, QRectF, QSize, QTimer, QTime, QEvent, QUrl
@@ -24,6 +28,7 @@ from app.app_info import (
     BRAND_PUBLISHER, LEGAL_PUBLISHER_NAME, SUPPORT_EMAIL, SUPPORT_URL,
     TERMS_VERSION, PRIVACY_VERSION,
 )
+from app.platform_info import IS_MACOS, PLATFORM_LABEL, SUPPORTS_GAMES
 from app.services import (
     settings_service, quality_service, game_route_profile_service,
     official_warp_service, crash_service, route_dna_service, recovery_service,
@@ -469,8 +474,8 @@ class MainWindow(QMainWindow):
         self.game_detection_toast.details_requested.connect(self._on_game_toast_details)
         self.game_detection_toast.dismissed.connect(self._on_game_toast_dismissed)
         self._hotkey_id = 0x4744
-        self._hotkey_registered = self._register_global_hotkey()
-        if self.settings.get("automatic_update_checks", True):
+        self._hotkey_registered = bool(SUPPORTS_GAMES and self._register_global_hotkey())
+        if self.settings.get("automatic_update_checks", True) and not IS_MACOS:
             QTimer.singleShot(2800, lambda: self.vm.check_for_updates(manual=False))
         QTimer.singleShot(900, self.vm.refresh_official_warp_status)
 
@@ -494,7 +499,10 @@ class MainWindow(QMainWindow):
         title_box = QVBoxLayout()
         title = QLabel("LAGSHIFT  ·  لگ‌شیفت")
         title.setObjectName("title")
-        subtitle = QLabel("بهینه‌ساز اتصال برای گیمرها")
+        subtitle = QLabel(
+            "بهینه‌ساز اتصال برنامه‌ها در macOS" if IS_MACOS
+            else "بهینه‌ساز اتصال برای گیمرها"
+        )
         self.header_subtitle = subtitle
         subtitle.setObjectName("subtitle")
         title_box.addWidget(title)
@@ -522,7 +530,8 @@ class MainWindow(QMainWindow):
         self.tools_tab = TrafficInsightWidget()
         self.settings_tab = self._build_settings_tab()
         self.tabs.addTab(self.home_tab, "⌂ خانه")
-        self.tabs.addTab(self.games_tab, "🎮 بازی‌ها")
+        if SUPPORTS_GAMES:
+            self.tabs.addTab(self.games_tab, "🎮 بازی‌ها")
         self.tabs.addTab(self.apps_tab, "🧩 برنامه‌ها")
         self.tabs.addTab(self.dns_tab, "🌐 DNS")
         self.tabs.addTab(self.tunnel_tab, "🛡 اتصال")
@@ -556,11 +565,15 @@ class MainWindow(QMainWindow):
         eyebrow = QLabel("پیشنهاد هوشمند برای همین لحظه")
         eyebrow.setStyleSheet("color:#72DFF8; font-weight:bold;")
         copy.addWidget(eyebrow)
-        self.home_game_title = QLabel("منتظر اجرای بازی")
+        self.home_game_title = QLabel(
+            "آمادهٔ بهینه‌سازی برنامه‌ها" if IS_MACOS else "منتظر اجرای بازی"
+        )
         self.home_game_title.setObjectName("homeHeroTitle")
         self.home_game_title.setWordWrap(True)
         copy.addWidget(self.home_game_title)
         self.home_game_subtitle = QLabel(
+            "یک برنامه را انتخاب کن؛ DNS، دسترسی و مسیر رسمی Cloudflare روی همین مک بررسی می‌شوند."
+            if IS_MACOS else
             "بازی را باز کن؛ لگ‌شیفت آن را محلی تشخیص می‌دهد و قبل از هر تغییری تأیید می‌گیرد."
         )
         self.home_game_subtitle.setWordWrap(True)
@@ -586,7 +599,9 @@ class MainWindow(QMainWindow):
             steps_row.addWidget(step)
             self.home_steps.append(step)
         copy.addLayout(steps_row)
-        self.home_primary_btn = QPushButton("🎮 رفتن به بازی‌های من")
+        self.home_primary_btn = QPushButton(
+            "🧩 رفتن به برنامه‌ها" if IS_MACOS else "🎮 رفتن به بازی‌های من"
+        )
         self.home_primary_btn.setObjectName("primary")
         self.home_primary_btn.setMinimumHeight(45)
         copy.addWidget(self.home_primary_btn)
@@ -653,7 +668,9 @@ class MainWindow(QMainWindow):
         quick_title.setStyleSheet("font-size:15px; font-weight:bold; color:#DFF9FF;")
         layout.addWidget(quick_title)
         quick = QGridLayout()
-        self.home_games_btn = QPushButton("🎮 مدیریت بازی‌ها")
+        self.home_games_btn = QPushButton(
+            "🧩 برنامه‌های پشتیبانی‌شده" if IS_MACOS else "🎮 مدیریت بازی‌ها"
+        )
         self.home_dns_btn = QPushButton("🌐 انتخاب DNS")
         self.home_tunnel_btn = QPushButton("🛡 مسیرهای اتصال")
         quick.addWidget(self.home_games_btn, 0, 0)
@@ -661,6 +678,8 @@ class MainWindow(QMainWindow):
         quick.addWidget(self.home_tunnel_btn, 0, 2)
         layout.addLayout(quick)
         privacy = QLabel(
+            "🔒 تحلیل مسیر روی همین مک انجام می‌شود؛ تغییر DNS فقط با تأیید مدیر و دارای بازگشت خودکار است."
+            if IS_MACOS else
             "🔒 تشخیص بازی و تحلیل مسیر روی همین دستگاه انجام می‌شود؛ هیچ تغییری بدون انتخاب تو اعمال نمی‌شود."
         )
         privacy.setWordWrap(True)
@@ -751,7 +770,11 @@ class MainWindow(QMainWindow):
         goal_title.setStyleSheet("font-size:15px; font-weight:bold; color:#FFD180;")
         goal_layout.addWidget(goal_title)
         self.dns_goal_combo = QComboBox()
-        self.dns_goal_combo.addItem("🎮 باز کردن بازی‌های تحریم‌شده · DNS ایرانی", "anti_sanction")
+        self.dns_goal_combo.addItem(
+            "🧩 دسترسی به سرویس‌های محدودشده · DNS ایرانی" if IS_MACOS
+            else "🎮 باز کردن بازی‌های تحریم‌شده · DNS ایرانی",
+            "anti_sanction",
+        )
         self.dns_goal_combo.addItem("🌍 پاسخ سریع‌تر سایت و شروع دانلود · DNS جهانی", "speed")
         self.dns_goal_combo.addItem("🤖 انتخاب خودکار از بین همه DNSها", "balanced")
         goal_index = self.dns_goal_combo.findData(
@@ -1240,20 +1263,29 @@ class MainWindow(QMainWindow):
         layout.addWidget(self.tray_check)
 
         note = QLabel(
-            "وقتی این گزینه فعاله، با زدن ضربدر پنجره، برنامه فقط مخفی می‌شه و از "
-            "آیکون کنار ساعت ویندوز در دسترسه. برای بستن کامل، از همون‌جا «خروج» رو بزن."
+            (
+                "وقتی این گزینه فعال است، با بستن پنجره برنامه در نوار منوی macOS می‌ماند؛ "
+                "برای بستن کامل از همان منو «خروج کامل» را بزن."
+            ) if IS_MACOS else (
+                "وقتی این گزینه فعاله، با زدن ضربدر پنجره، برنامه فقط مخفی می‌شه و از "
+                "آیکون کنار ساعت ویندوز در دسترسه. برای بستن کامل، از همون‌جا «خروج» رو بزن."
+            )
         )
         note.setWordWrap(True)
         note.setStyleSheet("color:#8A8A8A;")
         layout.addWidget(note)
 
-        self.autostart_check = QCheckBox("اجرای خودکار برنامه با بالا اومدن ویندوز")
+        self.autostart_check = QCheckBox(
+            "اجرای خودکار برنامه با ورود به macOS" if IS_MACOS
+            else "اجرای خودکار برنامه با بالا اومدن ویندوز"
+        )
         self.autostart_check.setChecked(self.vm.is_autostart_enabled())
         layout.addWidget(self.autostart_check)
 
         self.overlay_check = QCheckBox("نمایش اورلی شناور پینگ روی صفحه (وقتی تانل وصله)")
         self.overlay_check.setChecked(self.settings.get("overlay_enabled", False))
         layout.addWidget(self.overlay_check)
+        self.overlay_check.setVisible(SUPPORTS_GAMES)
 
         self.reduce_motion_check = QCheckBox("حرکت‌های رابط کمتر شود")
         self.reduce_motion_check.setChecked(self.settings.get("reduce_motion", False))
@@ -1267,7 +1299,10 @@ class MainWindow(QMainWindow):
 
         self.network_advanced_toggle = QPushButton("⚙ تنظیمات حرفه‌ای شبکه")
         self.network_advanced_toggle.setCheckable(True)
-        self.network_advanced_toggle.setToolTip("RouteDNA محلی، بازیابی مسیر و QoS بازی")
+        self.network_advanced_toggle.setToolTip(
+            "RouteDNA محلی و بازیابی امن مسیر" if IS_MACOS
+            else "RouteDNA محلی، بازیابی مسیر و QoS بازی"
+        )
         layout.addWidget(self.network_advanced_toggle)
         self.network_advanced_frame = QFrame()
         self.network_advanced_frame.setObjectName("homeStat")
@@ -1292,11 +1327,13 @@ class MainWindow(QMainWindow):
         self.air_lite_check.setChecked(self.settings.get("air_lite_enabled", True))
         self.air_lite_check.setToolTip("مقصدهای تازه را محلی تشخیص می‌دهد؛ نیاز به ارسال اطلاعات ندارد")
         advanced_layout.addWidget(self.air_lite_check)
+        self.air_lite_check.setVisible(SUPPORTS_GAMES)
 
         self.game_qos_check = QCheckBox("QoS موقت بازی (DSCP 46؛ بازگشت خودکار)")
         self.game_qos_check.setChecked(self.settings.get("game_qos_enabled", False))
         self.game_qos_check.setToolTip("فقط برای پروسه بازی و ActiveStore ویندوز؛ ممکن است روتر DSCP را نادیده بگیرد")
         advanced_layout.addWidget(self.game_qos_check)
+        self.game_qos_check.setVisible(SUPPORTS_GAMES)
 
         self.route_dna_check = QCheckBox(
             "★ پیشنهادی برای بهترین اتصال — RouteDNA محلی و شخصی‌سازی مسیر"
@@ -1309,7 +1346,11 @@ class MainWindow(QMainWindow):
         dna_row = QHBoxLayout()
         dna_row.addWidget(QLabel("عمق آزمایش RouteDNA:"))
         self.route_dna_mode_combo = QComboBox()
-        self.route_dna_mode_combo.addItem("سبک · مناسب بازی و مصرف کم", "light")
+        self.route_dna_mode_combo.addItem(
+            "سبک · مناسب بررسی روزانه و مصرف کم" if IS_MACOS
+            else "سبک · مناسب بازی و مصرف کم",
+            "light",
+        )
         self.route_dna_mode_combo.addItem("استاندارد · بررسی دقیق‌تر", "standard")
         self.route_dna_mode_combo.addItem("دقیق · فقط وقتی شبکه خلوت است", "deep")
         dna_index = self.route_dna_mode_combo.findData(
@@ -1340,7 +1381,11 @@ class MainWindow(QMainWindow):
             "<b>چه چیزی خوانده یا ارسال نمی‌شود؟</b> IP عمومی، نام Wi‑Fi، تاریخچه مرور، "
             "محتوای ترافیک، حساب کاربری و موقعیت دقیق. ارسال اطلاعات خاموش است.<br>"
             "<b>اثر روشن‌بودن:</b> انتخاب شخصی‌تر و دقیق‌تر، با چند تست کوتاه و مصرف بسیار کم. "
-            "هنگام بازی یا ترافیک سنگین خودکار تست سبک اجرا می‌شود.<br>"
+            + (
+                "هنگام دانلود یا ترافیک سنگین خودکار تست سبک اجرا می‌شود.<br>"
+                if IS_MACOS else
+                "هنگام بازی یا ترافیک سنگین خودکار تست سبک اجرا می‌شود.<br>"
+            ) +
             "<b>اگر خاموش باشد:</b> اتصال عادی و تست زنده کار می‌کند، اما حافظه و پیشنهاد "
             "اختصاصی همان شبکه در تصمیم‌گیری استفاده نمی‌شود.<br>"
             "ASN، اپراتور و منطقه فقط با رضایت جداگانه و Backend تنظیم‌شده دریافت می‌شوند."
@@ -1527,6 +1572,20 @@ class MainWindow(QMainWindow):
         update_actions.addWidget(self.check_update_btn)
         update_actions.addWidget(self.download_update_btn)
         update_layout.addLayout(update_actions)
+        if IS_MACOS:
+            self.auto_update_check.setChecked(False)
+            self.auto_update_check.setEnabled(False)
+            self.update_channel_combo.setEnabled(False)
+            self.check_update_btn.setEnabled(False)
+            self.download_update_btn.hide()
+            self.install_repair_btn.setEnabled(False)
+            self.install_repair_btn.setToolTip(
+                "ترمیم خودکار فعلاً مخصوص نصب‌کنندهٔ ویندوز است"
+            )
+            self.update_status_label.setText(
+                f"نسخهٔ آزمایشی macOS: {APP_VERSION} · آپدیت از صفحهٔ Releases دریافت می‌شود؛ "
+                "فایل Windows هرگز روی مک پیشنهاد یا اجرا نمی‌شود."
+            )
         layout.addWidget(update_card)
 
         product_card = QFrame()
@@ -1558,6 +1617,7 @@ class MainWindow(QMainWindow):
         self.tray_disconnect_action.setEnabled(False)
         self.tray_disconnect_action.triggered.connect(self._tray_disconnect)
         check_update_action = QAction("بررسی آپدیت", self)
+        check_update_action.setVisible(not IS_MACOS)
         check_update_action.triggered.connect(lambda: self.vm.check_for_updates(manual=True))
         quit_action = QAction("خروج کامل", self)
         quit_action.triggered.connect(self._quit_app)
@@ -1737,7 +1797,11 @@ class MainWindow(QMainWindow):
         self.about_btn.clicked.connect(self._show_about)
         self.network_advanced_toggle.toggled.connect(self.network_advanced_frame.setVisible)
         self.home_primary_btn.clicked.connect(self._on_home_primary)
-        self.home_games_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.games_tab))
+        self.home_games_btn.clicked.connect(
+            lambda: self.tabs.setCurrentWidget(
+                self.games_tab if SUPPORTS_GAMES else self.apps_tab
+            )
+        )
         self.home_dns_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.dns_tab))
         self.home_tunnel_btn.clicked.connect(lambda: self.tabs.setCurrentWidget(self.tunnel_tab))
         self.home_health_btn.clicked.connect(lambda: self._start_security_audit(False))
@@ -1747,6 +1811,13 @@ class MainWindow(QMainWindow):
         )
 
     def _on_home_primary(self):
+        if not SUPPORTS_GAMES:
+            self.tabs.setCurrentWidget(self.apps_tab)
+            self.banner.show_message(
+                "یک برنامه را انتخاب کن تا مسیر دسترسی همان برنامه بررسی شود.",
+                "info", 4500,
+            )
+            return
         if self._pending_game_payload:
             self._on_review_pending_game()
             return
@@ -1759,18 +1830,21 @@ class MainWindow(QMainWindow):
         self.banner.show_message("بازی را اجرا کن یا از فهرست انتخابش کن", "info")
 
     def _show_about(self):
-        edition_name = "نسخه عمومی" if EDITION == "public" else "نسخه توسعه‌دهنده"
+        edition_name = (
+            "نسخه آزمایشی macOS" if IS_MACOS else
+            "نسخه عمومی" if EDITION == "public" else "نسخه توسعه‌دهنده"
+        )
         publisher = LEGAL_PUBLISHER_NAME or BRAND_PUBLISHER
         support = SUPPORT_EMAIL or SUPPORT_URL or "راه ارتباط عمومی هنوز تعیین نشده"
         QMessageBox.information(
             self,
             "درباره LAGSHIFT",
-            "LAGSHIFT — مسیر هوشمندتر برای بازی روان‌تر\n\n"
+            "LAGSHIFT — مسیر هوشمندتر برای اتصال پایدارتر\n\n"
             f"نسخه {APP_VERSION} · ساخت {BUILD_NUMBER}\n"
-            f"{edition_name}\n\n"
+            f"{edition_name} · {PLATFORM_LABEL}\n\n"
             f"ناشر: {publisher}\n"
             f"پشتیبانی: {support}\n\n"
-            "محصول مستقل بررسی و بهینه‌سازی اتصال بازی‌ها و برنامه‌های پشتیبانی‌شده.\n"
+            "محصول مستقل بررسی و بهینه‌سازی اتصال برنامه‌های پشتیبانی‌شده.\n"
             "LAGSHIFT سرویس VPN عمومی نیست و کاهش قطعی پینگ را تضمین نمی‌کند.\n\n"
             f"شرایط استفاده {TERMS_VERSION} · حریم خصوصی {PRIVACY_VERSION}\n"
             "گزارش اختیاری و اطلاعات جغرافیایی به‌صورت پیش‌فرض خاموش‌اند.\n\n"
@@ -1865,10 +1939,17 @@ class MainWindow(QMainWindow):
         self.banner.show_message("بررسی سپر امنیت کامل شد", level, 5000)
 
     def _confirm_emergency_reset(self):
+        reset_scope = (
+            "DNS قبلی و نشست WARP متعلق به LAGSHIFT بازگردانده شوند؟\n"
+            "این عملیات فقط تغییرهای خود برنامه را برمی‌گرداند و ممکن است یک‌بار "
+            "رمز مدیر macOS را بخواهد."
+            if IS_MACOS else
+            "DNS قبلی و تمام QoSهای موقت متعلق به LAGSHIFT بازگردانده شوند؟\n"
+            "این عملیات به تنظیمات برنامه‌های دیگر دست نمی‌زند و یک‌بار اجازه ویندوز می‌خواهد."
+        )
         answer = QMessageBox.question(
             self, "بازگردانی اضطراری شبکه",
-            "DNS قبلی و تمام QoSهای موقت متعلق به LAGSHIFT بازگردانده شوند؟\n"
-            "این عملیات به تنظیمات برنامه‌های دیگر دست نمی‌زند و یک‌بار اجازه ویندوز می‌خواهد.",
+            reset_scope,
             QMessageBox.Yes | QMessageBox.No, QMessageBox.No,
         )
         if answer != QMessageBox.Yes:
@@ -1914,6 +1995,12 @@ class MainWindow(QMainWindow):
         QMessageBox.information(self, "رسید بازیابی LAGSHIFT", text)
 
     def _start_update_check(self, manual: bool):
+        if IS_MACOS:
+            self.banner.show_message(
+                "نسخهٔ macOS از صفحهٔ Releases به‌روز می‌شود؛ آپدیت خودکار مک هنوز فعال نیست.",
+                "info", 5000,
+            )
+            return
         self.check_update_btn.setEnabled(False)
         self.check_update_btn.setText("در حال بررسی امضا...")
         self.update_status_label.setText("در حال بررسی کانال امن انتشار…")
@@ -2872,7 +2959,7 @@ class MainWindow(QMainWindow):
         self.home_primary_btn.setText("✨ دیدن پیشنهاد بهینه‌سازی")
         self._set_home_state("detected", "پیشنهاد آماده است", "پیش از هر تغییر، جزئیات را می‌بینی و خودت تأیید می‌کنی.")
         self.game_detection_toast.show_game(payload, name, confidence)
-        if settings_service.load_settings().get("game_detection_sound", True):
+        if winsound is not None and settings_service.load_settings().get("game_detection_sound", True):
             try:
                 winsound.MessageBeep(winsound.MB_ICONASTERISK)
             except RuntimeError:

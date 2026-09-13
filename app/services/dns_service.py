@@ -5,6 +5,7 @@ import json
 import os
 import socket
 import subprocess
+import sys
 from pathlib import Path
 from typing import Optional
 
@@ -21,6 +22,9 @@ def _set_last_error(message: str) -> None:
 
 
 def get_last_error() -> str:
+    if sys.platform == "darwin":
+        from app.services import macos_dns_service
+        return macos_dns_service.get_last_error()
     return _last_error
 
 
@@ -120,6 +124,9 @@ def _save_backup_once(adapter_name: str) -> None:
 
 def set_dns(adapter_name: str, primary: str, secondary: Optional[str] = None,
             doh_url: str = "") -> bool:
+    if sys.platform == "darwin":
+        from app.services import macos_dns_service
+        return macos_dns_service.set_dns(adapter_name, primary, secondary)
     if os.name == "nt":
         from app.services import privileged_helper
         if not privileged_helper.is_admin():
@@ -169,6 +176,9 @@ def _set_dns_direct(adapter_name: str, primary: str, secondary: Optional[str] = 
 
 
 def restore_original_dns(adapter_name: str | None = None) -> bool:
+    if sys.platform == "darwin":
+        from app.services import macos_dns_service
+        return macos_dns_service.restore_original_dns(adapter_name)
     if os.name == "nt":
         from app.services import privileged_helper
         if not privileged_helper.is_admin():
@@ -237,10 +247,15 @@ def reset_dns_to_dhcp(adapter_name: str) -> bool:
 
 
 def has_pending_restore() -> bool:
+    if sys.platform == "darwin":
+        from app.services import macos_dns_service
+        return macos_dns_service.has_pending_restore()
     return _state_file().exists() or _legacy_state_file().exists()
 
 
 def enable_doh(server_ip: str, doh_template: str) -> bool:
+    if sys.platform != "win32":
+        return False
     result = _run([
         "netsh", "dns", "add", "encryption", f"server={server_ip}",
         f"dohtemplate={doh_template}", "autoupgrade=yes", "udpfallback=no",
@@ -250,6 +265,9 @@ def enable_doh(server_ip: str, doh_template: str) -> bool:
 
 def verify_doh_no_downgrade(server_ip: str, expected_template: str = "") -> dict:
     """Read Windows' installed DoH policy and require UDP fallback to be disabled."""
+    if sys.platform != "win32":
+        return {"configured": False, "no_downgrade": False,
+                "message": "DoH سیستمی خودکار در این نسخه macOS اعمال نمی‌شود"}
     try:
         socket.inet_pton(socket.AF_INET, server_ip)
     except OSError:

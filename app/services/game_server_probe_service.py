@@ -9,6 +9,7 @@ import struct
 import subprocess
 import time
 import os
+import sys
 import uuid
 from pathlib import Path
 from concurrent.futures import ThreadPoolExecutor
@@ -350,8 +351,13 @@ def capture_game_udp_endpoints_pktmon(process_name: str, duration_s: float = 1.5
 
 def _icmp_sample(host: str, timeout_ms: int = 900) -> int:
     try:
+        command = (
+            ["/sbin/ping", "-c", "1", "-W", str(timeout_ms), host]
+            if sys.platform == "darwin" else
+            ["ping", "-n", "1", "-w", str(timeout_ms), host]
+        )
         completed = subprocess.run(
-            ["ping", "-n", "1", "-w", str(timeout_ms), host],
+            command,
             capture_output=True, text=True, timeout=(timeout_ms / 1000) + 1,
             **hidden_process_kwargs(),
         )
@@ -359,8 +365,8 @@ def _icmp_sample(host: str, timeout_ms: int = 900) -> int:
         return -1
     if completed.returncode != 0:
         return -1
-    match = re.search(r"[=<]\s*(\d+)\s*ms", completed.stdout, re.IGNORECASE)
-    return int(match.group(1)) if match else -1
+    match = re.search(r"[=<]\s*(\d+(?:\.\d+)?)\s*ms", completed.stdout, re.IGNORECASE)
+    return round(float(match.group(1))) if match else -1
 
 
 def benchmark_endpoint(endpoint: dict, attempts: int = 5,

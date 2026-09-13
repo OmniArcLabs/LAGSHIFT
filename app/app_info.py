@@ -15,8 +15,8 @@ LEGACY_DATA_FOLDER_NAME = "GameDNS"
 TERMS_VERSION = "1.3"
 PRIVACY_VERSION = "1.4"
 
-# Public builds intentionally expose only the game-focused product surface.
-# The future private developer build replaces this value during its own build.
+# Public builds expose the supported platform surface: games on Windows and a
+# reduced Apps/DNS/WARP/Traffic Insight surface on macOS.
 EDITION = "public"
 ALLOW_CUSTOM_TUNNELS = EDITION == "developer"
 ALLOW_SYSTEM_WIDE_TUNNEL = EDITION == "developer"

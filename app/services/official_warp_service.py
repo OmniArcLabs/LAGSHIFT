@@ -5,6 +5,7 @@ import os
 import shutil
 import socket
 import subprocess
+import sys
 import time
 import urllib.request
 from dataclasses import dataclass
@@ -18,6 +19,12 @@ DOWNLOAD_URL = "https://one.one.one.one/"
 _WINDOWS_CANDIDATES = (
     Path(os.environ.get("PROGRAMFILES", r"C:\Program Files")) / "Cloudflare" / "Cloudflare WARP" / "warp-cli.exe",
     Path(os.environ.get("PROGRAMFILES(X86)", r"C:\Program Files (x86)")) / "Cloudflare" / "Cloudflare WARP" / "warp-cli.exe",
+)
+_MACOS_APP = Path("/Applications/Cloudflare WARP.app")
+_MACOS_CANDIDATES = (
+    Path("/usr/local/bin/warp-cli"),
+    Path("/opt/homebrew/bin/warp-cli"),
+    _MACOS_APP / "Contents" / "Resources" / "warp-cli",
 )
 MODE_LABELS = {
     "doh": "فقط DNS امن (HTTPS)",
@@ -51,7 +58,8 @@ class OfficialWarpStatus:
 
 
 def find_cli() -> Path | None:
-    for candidate in _WINDOWS_CANDIDATES:
+    candidates = _MACOS_CANDIDATES if sys.platform == "darwin" else _WINDOWS_CANDIDATES
+    for candidate in candidates:
         if candidate.is_file():
             return candidate
     found = shutil.which("warp-cli") or shutil.which("warp-cli.exe")
@@ -67,6 +75,16 @@ def _run_cli(cli_path: Path, arguments: list[str], timeout_s: float = 16.0):
 
 
 def _service_is_running() -> bool:
+    if sys.platform == "darwin":
+        try:
+            result = subprocess.run(
+                ["/bin/launchctl", "print",
+                 "system/com.cloudflare.1dot1dot1dot1.macos.warp.daemon"],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL, timeout=5,
+            )
+            return result.returncode == 0
+        except (OSError, subprocess.SubprocessError):
+            return False
     if os.name != "nt":
         return False
     try:
@@ -81,6 +99,41 @@ def _service_is_running() -> bool:
 
 
 def _signature_is_cloudflare(cli_path: Path) -> bool:
+    if sys.platform == "darwin":
+        try:
+            if not _MACOS_APP.is_dir():
+                return False
+            verify = subprocess.run(
+                ["/usr/bin/codesign", "--verify", "--deep", "--strict", str(_MACOS_APP)],
+                stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=15,
+            )
+            bundle_id = subprocess.run(
+                ["/usr/libexec/PlistBuddy", "-c", "Print :CFBundleIdentifier",
+                 str(_MACOS_APP / "Contents" / "Info.plist")],
+                capture_output=True, text=True, timeout=6,
+            )
+            app_meta = subprocess.run(
+                ["/usr/bin/codesign", "-dv", "--verbose=4", str(_MACOS_APP)],
+                capture_output=True, text=True, timeout=8,
+            )
+            cli_meta = subprocess.run(
+                ["/usr/bin/codesign", "-dv", "--verbose=4", str(cli_path.resolve())],
+                capture_output=True, text=True, timeout=8,
+            )
+            def team(result) -> str:
+                text = f"{result.stdout}\n{result.stderr}"
+                for line in text.splitlines():
+                    if line.startswith("TeamIdentifier="):
+                        return line.split("=", 1)[1].strip()
+                return ""
+            app_team, cli_team = team(app_meta), team(cli_meta)
+            return (
+                verify.returncode == 0
+                and bundle_id.stdout.strip() == "com.cloudflare.1dot1dot1dot1.macos"
+                and bool(app_team) and app_team == cli_team
+            )
+        except (OSError, subprocess.SubprocessError):
+            return False
     if os.name != "nt":
         return False
     escaped = str(cli_path).replace("'", "''")

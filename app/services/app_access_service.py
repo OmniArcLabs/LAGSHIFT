@@ -7,8 +7,10 @@ import re
 import socket
 import ssl
 import subprocess
+import sys
 import time
 from dataclasses import asdict
+from dataclasses import replace
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from typing import Iterable
@@ -17,8 +19,33 @@ from app.models.app_access import AppAccessProfile
 from app.services import app_profile_catalog_service
 
 
+_MAC_PROFILE_OVERRIDES = {
+    "discord": (("Discord",), ("Discord",)),
+    "steam": (("steam_osx", "Steam Helper"), ("Steam",)),
+    "epic": (("EpicGamesLauncher",), ("Epic Games Launcher",)),
+    "battlenet": (("Battle.net",), ("Battle.net",)),
+    "spotify": (("Spotify",), ("Spotify",)),
+    "soundcloud": ((), ()),
+    "vscode": (("Code", "Code Helper"), ("Visual Studio Code",)),
+    "unity": (("Unity Hub", "Unity"), ("Unity Hub", "Unity")),
+    "chatgpt": (("ChatGPT",), ("ChatGPT",)),
+    "claude": (("Claude",), ("Claude",)),
+    "gemini": ((), ()),
+    "copilot": (("Microsoft Copilot",), ("Microsoft Copilot",)),
+    "perplexity": (("Perplexity",), ("Perplexity",)),
+}
+
+
 def available_profiles() -> tuple[AppAccessProfile, ...]:
-    return app_profile_catalog_service.load_profiles()
+    profiles = app_profile_catalog_service.load_profiles()
+    if sys.platform != "darwin":
+        return profiles
+    # macOS deliberately omits Windows-only launchers and driver utilities.
+    return tuple(
+        replace(profile, process_names=_MAC_PROFILE_OVERRIDES[profile.id][0],
+                registry_names=_MAC_PROFILE_OVERRIDES[profile.id][1])
+        for profile in profiles if profile.id in _MAC_PROFILE_OVERRIDES
+    )
 
 
 def get_profile(profile_id: str) -> AppAccessProfile | None:
@@ -44,6 +71,23 @@ def running_process_names() -> set[str]:
 
 
 def installed_app_records() -> list[dict]:
+    if sys.platform == "darwin":
+        records: list[dict] = []
+        roots = (Path("/Applications"), Path.home() / "Applications")
+        for root in roots:
+            if not root.is_dir():
+                continue
+            try:
+                bundles = list(root.glob("*.app")) + list(root.glob("*/*.app"))
+            except OSError:
+                continue
+            for bundle in bundles:
+                records.append({
+                    "name": bundle.stem.casefold(),
+                    "icon_path": "",
+                    "install_location": str(bundle),
+                })
+        return records
     if os.name != "nt":
         return []
     try:
@@ -103,6 +147,8 @@ def _profile_executable(profile: AppAccessProfile, record: dict | None) -> str:
     if icon_path and os.path.isfile(icon_path):
         return icon_path
     location = Path(str(record.get("install_location") or ""))
+    if sys.platform == "darwin" and location.suffix.casefold() == ".app" and location.is_dir():
+        return str(location)
     if not location.is_dir():
         return ""
     for executable in profile.process_names:
@@ -210,6 +256,12 @@ def launch_profile(profile_id: str) -> tuple[bool, str]:
         return False, "پروفایل برنامه معتبر نیست"
     row = next((item for item in catalog_status() if item.get("id") == profile.id), {})
     executable = Path(str(row.get("executable_path") or ""))
+    if sys.platform == "darwin" and executable.is_dir() and executable.suffix.casefold() == ".app":
+        try:
+            subprocess.Popen(["/usr/bin/open", str(executable)], close_fds=True)
+            return True, f"{profile.name} اجرا شد"
+        except OSError:
+            return False, "اجرای برنامه ممکن نشد"
     if executable.is_file() and executable.suffix.casefold() == ".exe":
         try:
             subprocess.Popen(
@@ -219,13 +271,18 @@ def launch_profile(profile_id: str) -> tuple[bool, str]:
             return True, f"{profile.name} اجرا شد"
         except OSError:
             return False, "اجرای برنامه ممکن نشد"
-    if profile.launch_url.startswith("https://") and os.name == "nt":
+    if profile.launch_url.startswith("https://"):
         try:
-            os.startfile(profile.launch_url)
+            if sys.platform == "darwin":
+                subprocess.Popen(["/usr/bin/open", profile.launch_url], close_fds=True)
+            elif os.name == "nt":
+                os.startfile(profile.launch_url)
+            else:
+                return False, "بازکردن سرویس روی این سیستم پشتیبانی نمی‌شود"
             return True, f"{profile.name} در مرورگر باز شد"
         except OSError:
             return False, "بازکردن سرویس ممکن نشد"
-    return False, "فایل اجرایی برنامه روی ویندوز پیدا نشد"
+    return False, "برنامه روی این دستگاه پیدا نشد"
 
 
 def probe_domains(domains: Iterable[str], timeout_s: float = 1.4) -> dict:

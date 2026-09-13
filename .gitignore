@@ -7,6 +7,7 @@ build/
 dist/
 *.spec
 !LAGSHIFT.spec
+!LAGSHIFT-macos.spec
 .venv/
 .venv*/
 venv/

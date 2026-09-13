@@ -9,6 +9,7 @@ import os
 import re
 import ssl
 import subprocess
+import sys
 import urllib.error
 import urllib.parse
 import urllib.request
@@ -121,6 +122,11 @@ def check_for_update(manifest_url: str | None = None,
                      public_key_b64: str = UPDATE_PUBLIC_KEY_B64,
                      current_version: str = APP_VERSION,
                      channel: str = UPDATE_CHANNEL) -> UpdateCheck:
+    if sys.platform == "darwin":
+        return UpdateCheck(
+            False, False,
+            "آپدیت خودکار macOS تا انتشار مانیفست مستقل مک غیرفعال است",
+        )
     selected_url = (
         UPDATE_MANIFEST_URLS.get(channel, "")
         if manifest_url is None else manifest_url

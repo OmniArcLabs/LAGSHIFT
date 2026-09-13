@@ -1,6 +1,7 @@
 """Product data paths with a non-destructive migration from the legacy name."""
 from __future__ import annotations
 import os
+import sys
 import shutil
 from pathlib import Path
 
@@ -8,6 +9,10 @@ from app.app_info import DATA_FOLDER_NAME, LEGACY_DATA_FOLDER_NAME
 
 
 def _base(environment_name: str) -> Path:
+    if sys.platform == "darwin":
+        if environment_name == "LOCALAPPDATA":
+            return Path.home() / "Library" / "Caches"
+        return Path.home() / "Library" / "Application Support"
     fallback = os.environ.get("APPDATA", str(Path.home()))
     return Path(os.environ.get(environment_name, fallback))
 

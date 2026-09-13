@@ -4,6 +4,11 @@
 
 # LAGSHIFT
 
+> **macOS preview:** a reduced native edition for Intel and Apple Silicon is
+> developed on the `macos` branch. It includes Apps, Smart DNS, official WARP,
+> RouteDNA and Traffic Insight, and intentionally omits the Games section.
+> See [the macOS guide](docs/MACOS.md) for the exact support and trust boundary.
+
 **LAGSHIFT by [OMNIARC](https://github.com/OmniArcLabs)**
 
 [![Release](https://img.shields.io/github/v/release/OmniArcLabs/LAGSHIFT?display_name=tag&style=flat-square&color=20d9f5)](https://github.com/OmniArcLabs/LAGSHIFT/releases/latest)

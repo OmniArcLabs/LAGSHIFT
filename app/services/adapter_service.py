@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import socket
 import subprocess
+import sys
 from typing import List
 
 from app.models.network_adapter import NetworkAdapter
@@ -11,6 +12,8 @@ from app.services.process_service import hidden_process_kwargs
 
 
 def list_adapters() -> List[NetworkAdapter]:
+    if sys.platform == "darwin":
+        return _list_macos_services()
     script = r"""
 $ErrorActionPreference='Stop'
 $items=@(Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | ForEach-Object {
@@ -36,6 +39,44 @@ ConvertTo-Json -InputObject $items -Compress
         is_enabled=bool(item.get("enabled", True)),
         current_dns=list(item.get("dns") or []),
     ) for item in raw if item.get("name")]
+
+
+def _networksetup(*arguments: str) -> subprocess.CompletedProcess:
+    return subprocess.run(
+        ["/usr/sbin/networksetup", *arguments], capture_output=True, text=True,
+        encoding="utf-8", errors="replace", timeout=12,
+    )
+
+
+def _list_macos_services() -> List[NetworkAdapter]:
+    """Return enabled macOS network services using stable networksetup output."""
+    try:
+        listed = _networksetup("-listallnetworkservices")
+        if listed.returncode != 0:
+            return []
+        result: list[NetworkAdapter] = []
+        for raw in listed.stdout.splitlines():
+            service = raw.strip()
+            if not service or service.startswith("An asterisk") or service.startswith("*"):
+                continue
+            info = _networksetup("-getinfo", service)
+            if info.returncode != 0:
+                continue
+            text = info.stdout.casefold()
+            if "ip address: none" in text or "ip address: 0.0.0.0" in text:
+                continue
+            dns = _networksetup("-getdnsservers", service)
+            servers = [
+                line.strip() for line in dns.stdout.splitlines()
+                if line.strip() and "aren't any dns servers" not in line.casefold()
+            ] if dns.returncode == 0 else []
+            result.append(NetworkAdapter(
+                name=service, description="سرویس شبکه macOS",
+                is_enabled=True, current_dns=servers,
+            ))
+        return result
+    except (OSError, subprocess.SubprocessError):
+        return []
 
 
 def _fallback_adapters() -> List[NetworkAdapter]:

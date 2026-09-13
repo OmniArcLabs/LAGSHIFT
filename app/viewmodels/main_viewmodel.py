@@ -9,6 +9,7 @@ from concurrent.futures import ThreadPoolExecutor, as_completed
 from PySide6.QtCore import QObject, Signal, QTimer
 
 from app.models.network_adapter import DEFAULT_DNS_PROFILES
+from app.platform_info import SUPPORTS_GAMES
 from app.app_info import (
     ALLOW_CUSTOM_TUNNELS, ALLOW_LEGACY_WARP_REGISTRATION,
     UPDATE_MANIFEST_URL, UPDATE_PUBLIC_KEY_B64,
@@ -183,7 +184,8 @@ class MainViewModel(QObject):
         # Catch launch/splash processes before a game takes exclusive full-screen.
         self._game_scan_timer.setInterval(750)
         self._game_scan_timer.timeout.connect(self._scan_for_running_game)
-        self._game_scan_timer.start()
+        if SUPPORTS_GAMES:
+            self._game_scan_timer.start()
         self._air_timer = QTimer(self)
         self._air_timer.setInterval(5000)
         self._air_timer.timeout.connect(self._air_lite_tick)
@@ -404,9 +406,13 @@ class MainViewModel(QObject):
                 warp_ok = bool(result.get("ok"))
                 if warp_ok:
                     self._official_warp_session = {}
-            ok, error = privileged_helper.request(
-                "emergency_reset", "", timeout_s=35.0
-            )
+            if sys.platform == "darwin":
+                ok = dns_service.restore_original_dns(self.active_adapter_name or None)
+                error = dns_service.get_last_error()
+            else:
+                ok, error = privileged_helper.request(
+                    "emergency_reset", "", timeout_s=35.0
+                )
             ok = bool(ok and warp_ok)
             self.emergency_reset_ready.emit(
                 ok, "DNS، QoS و مسیر WARP متعلق به LAGSHIFT بازیابی شدند" if ok
@@ -669,7 +675,10 @@ class MainViewModel(QObject):
                         "operation": "start", "ok": True, "profile_id": profile.id,
                         "app_name": profile.name, "mission": mission,
                         "route": "current", "dns_changed": False,
-                        "dns_name": self.active_profile_name or "تنظیم فعلی ویندوز",
+                        "dns_name": self.active_profile_name or (
+                            "تنظیم فعلی macOS" if sys.platform == "darwin"
+                            else "تنظیم فعلی ویندوز"
+                        ),
                         "adapter": self.active_adapter_name or adapter_name,
                         "baseline": baseline, "after": baseline,
                         "previous_profile": previous_payload,
@@ -731,7 +740,7 @@ class MainViewModel(QObject):
                 ranking = ranking[:3]
                 if not sinkhole_detected:
                     dns_failure = "هیچ DNS مناسبی پاسخ معتبر نداد"
-                if ranking and not privileged_helper.is_admin():
+                if ranking and sys.platform == "win32" and not privileged_helper.is_admin():
                     shortlisted = ranking[:3]
                     self.app_access_progress.emit({
                         "phase": "verify", "step": 3, "total": 4,
