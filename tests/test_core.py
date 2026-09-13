@@ -221,7 +221,9 @@ class AppAccessTests(unittest.TestCase):
         self.assertEqual(result["resolved"], 1)
         self.assertEqual(result["reachable"], 1)
         self.assertEqual(result["tls_ok"], 1)
-        connect.assert_called_once_with(("example.com", 443), timeout=1.4)
+        endpoint, = connect.call_args.args
+        self.assertEqual(endpoint, ("1.2.3.4", 443))
+        self.assertAlmostEqual(connect.call_args.kwargs["timeout"], 1.4, places=2)
         tls_context.return_value.wrap_socket.assert_called_once()
 
     @patch("app.services.app_access_service.ssl.create_default_context")
@@ -620,6 +622,59 @@ class RouteDnaTests(unittest.TestCase):
             for timer in vm.findChildren(type(vm._app_access_watch_timer)):
                 timer.stop()
 
+    def test_dns_sinkhole_skips_dns_changes_and_goes_straight_to_warp(self):
+        from PySide6.QtCore import QCoreApplication
+        from app.viewmodels.main_viewmodel import MainViewModel
+
+        qt_app = QCoreApplication.instance() or QCoreApplication([])
+        sinkhole = {
+            "healthy": False, "attempted": 2, "resolved": 2,
+            "reachable": 0, "tls_ok": 0, "median_ms": -1,
+            "suspected_sinkhole": True,
+        }
+        status = official_warp_service.OfficialWarpStatus(
+            installed=True, signature_valid=True, connected=False,
+        )
+        with tempfile.TemporaryDirectory() as folder, patch.dict(
+            os.environ, {"APPDATA": folder, "LOCALAPPDATA": folder}
+        ), patch(
+            "app.services.settings_service.load_settings",
+            return_value={"route_dna_enabled": False},
+        ), patch(
+            "app.services.app_access_service.probe_profile", return_value=sinkhole,
+        ), patch(
+            "app.services.connectivity_service.rank_dns_profiles",
+        ) as rank_dns, patch(
+            "app.services.privileged_helper.select_dns",
+        ) as select_dns, patch(
+            "app.services.dns_service.set_dns",
+        ) as set_dns, patch(
+            "app.services.official_warp_service.inspect", return_value=status,
+        ), patch(
+            "app.services.official_warp_service.connect_best",
+            return_value={"ok": False, "error": "درگاه WARP در دسترس نیست"},
+        ) as connect_best:
+            vm = MainViewModel()
+            results = []
+            vm.app_access_changed.connect(results.append)
+            vm.start_app_access("discord", "login", "Wi-Fi", allow_warp=True)
+            deadline = time.time() + 3
+            while not results and time.time() < deadline:
+                qt_app.processEvents()
+                time.sleep(0.01)
+            self.assertTrue(vm.wait_for_app_access())
+            qt_app.processEvents()
+            self.assertTrue(results)
+            self.assertFalse(results[-1]["ok"])
+            self.assertEqual(results[-1]["dns_candidates_tested"], 0)
+            self.assertIn("تعویض DNS عمداً انجام نشد", results[-1]["error"])
+            rank_dns.assert_not_called()
+            select_dns.assert_not_called()
+            set_dns.assert_not_called()
+            connect_best.assert_called_once()
+            for timer in vm.findChildren(type(vm._app_access_watch_timer)):
+                timer.stop()
+
 
 class ProductFoundationTests(unittest.TestCase):
     def test_installer_runs_packaged_runtime_health_check_before_success(self):
@@ -640,7 +695,8 @@ class ProductFoundationTests(unittest.TestCase):
         )]
         self.assertEqual(block.count("privileged_helper.select_dns("), 1)
         self.assertIn("ranking = ranking[:3]", block)
-        self.assertIn("total_budget_s=16", block)
+        self.assertIn("total_budget_s=18", block)
+        self.assertIn("sinkhole_detected", block)
         self.assertIn("cancelled=cancelled", block)
 
     def test_public_edition_does_not_enable_custom_tunnels(self):
@@ -1556,6 +1612,42 @@ class WarpTests(unittest.TestCase):
         self.assertEqual(result["attempts"], 1)
         connects = [call for call in run_cli.call_args_list if call.args[1] == ["connect"]]
         self.assertEqual(len(connects), 1)
+
+    @patch("app.services.official_warp_service.time.sleep", return_value=None)
+    @patch("app.services.official_warp_service.trace_says_warp_on", return_value=False)
+    @patch("app.services.official_warp_service._cli_output", return_value="Status: Connecting")
+    @patch("app.services.official_warp_service._run_cli")
+    @patch("app.services.official_warp_service.inspect")
+    def test_official_bridge_tries_distinct_modes_before_second_protocol(
+        self, inspect, run_cli, _cli_output, _trace, _sleep,
+    ):
+        inspect.return_value = official_warp_service.OfficialWarpStatus(
+            installed=True, cli_path=Path("warp-cli.exe"), service_running=True,
+            signature_valid=True, mode="warp", protocol="WireGuard",
+        )
+        run_cli.return_value = MagicMock(returncode=0, stdout="", stderr="")
+        result = official_warp_service.connect_best(
+            modes=("warp", "warp+doh", "warp+dot"),
+            protocols=("MASQUE", "WireGuard"), max_attempts=3, verify_attempts=1,
+        )
+        self.assertFalse(result["ok"])
+        mode_commands = [
+            call.args[1] for call in run_cli.call_args_list
+            if call.args[1][:1] == ["mode"]
+        ]
+        self.assertEqual(mode_commands[:3], [
+            ["mode", "warp"], ["mode", "warp+doh"], ["mode", "warp+dot"],
+        ])
+        protocol_commands = [
+            call.args[1] for call in run_cli.call_args_list
+            if call.args[1][:4] == ["tunnel", "protocol", "set", "WireGuard"]
+            or call.args[1][:4] == ["tunnel", "protocol", "set", "MASQUE"]
+        ]
+        self.assertEqual(protocol_commands[:3], [
+            ["tunnel", "protocol", "set", "WireGuard"],
+            ["tunnel", "protocol", "set", "MASQUE"],
+            ["tunnel", "protocol", "set", "WireGuard"],
+        ])
 
     @patch("app.services.official_warp_service._run_cli")
     @patch("app.services.official_warp_service.inspect")

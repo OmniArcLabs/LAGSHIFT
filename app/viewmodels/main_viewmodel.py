@@ -686,20 +686,38 @@ class MainViewModel(QObject):
 
                 domains = profile.domains_for(mission)
                 goal = "balanced" if mission == "download" else "anti_sanction"
-                self.app_access_progress.emit({
-                    "phase": "ranking", "step": 2, "total": 4,
-                    "message": f"DNSها روی {len(domains)} مقصد واقعی {profile.name} آزمایش می‌شوند…",
-                })
-                ranking = connectivity_service.rank_dns_profiles(
-                    self.dns_profiles,
-                    progress=lambda row: self.app_access_progress.emit({
+                sinkhole_detected = baseline_diagnosis["code"] == "dns-sinkhole"
+                if sinkhole_detected:
+                    # A repeated private answer for unrelated public targets is
+                    # network-level DNS interception. Changing Windows DNS would
+                    # only trigger elevation and repeat the same dead route.
+                    ranking = []
+                    dns_failure = (
+                        "این شبکه درخواست‌های DNS را به یک آدرس داخلی بسته هدایت می‌کند؛ "
+                        "برای جلوگیری از انتظار و اجازه مدیر، تعویض DNS انجام نشد"
+                    )
+                    self.app_access_progress.emit({
                         "phase": "ranking", "step": 2, "total": 4,
-                        "completed": row.get("completed", 0), "count": row.get("total", 0),
-                        "message": f"آزمایش DNS: {row.get('name', 'در حال بررسی')}",
-                    }),
-                    preference="stable" if mission == "login" else "balanced",
-                    goal=goal, domains=domains, rounds=dna_rounds,
-                )
+                        "message": (
+                            "رهگیری DNS شبکه تشخیص داده شد؛ تعویض DNS بی‌اثر است و "
+                            "مستقیم سراغ مسیر رسمی Cloudflare می‌رویم…"
+                        ),
+                    })
+                else:
+                    self.app_access_progress.emit({
+                        "phase": "ranking", "step": 2, "total": 4,
+                        "message": f"DNSها روی {len(domains)} مقصد واقعی {profile.name} آزمایش می‌شوند…",
+                    })
+                    ranking = connectivity_service.rank_dns_profiles(
+                        self.dns_profiles,
+                        progress=lambda row: self.app_access_progress.emit({
+                            "phase": "ranking", "step": 2, "total": 4,
+                            "completed": row.get("completed", 0), "count": row.get("total", 0),
+                            "message": f"آزمایش DNS: {row.get('name', 'در حال بررسی')}",
+                        }),
+                        preference="stable" if mission == "login" else "balanced",
+                        goal=goal, domains=domains, rounds=dna_rounds,
+                    )
                 if cancelled():
                     finish_cancelled()
                     return
@@ -711,7 +729,8 @@ class MainViewModel(QObject):
                 # cap prevents a degraded network from turning one click into
                 # several minutes of retries.
                 ranking = ranking[:3]
-                dns_failure = "هیچ DNS مناسبی پاسخ معتبر نداد"
+                if not sinkhole_detected:
+                    dns_failure = "هیچ DNS مناسبی پاسخ معتبر نداد"
                 if ranking and not privileged_helper.is_admin():
                     shortlisted = ranking[:3]
                     self.app_access_progress.emit({
@@ -894,8 +913,8 @@ class MainViewModel(QObject):
                     warp_attempted = True
                     warp_result = official_warp_service.connect_best(
                         modes=modes,
-                        max_attempts=2,
-                        total_budget_s=16,
+                        max_attempts=3,
+                        total_budget_s=18,
                         verify_attempts=2,
                         cancelled=cancelled,
                         progress=lambda message: self.app_access_progress.emit({
@@ -977,9 +996,9 @@ class MainViewModel(QObject):
                 remember("failed", False, last_probe or baseline)
                 if final_diagnosis["code"] == "dns-sinkhole":
                     error = (
-                        f"{profile.name} به یک IP خصوصیِ غیرقابل‌دسترسی هدایت شد. "
-                        "روی این اینترنت، DNS تنها کافی نیست و WARP رسمی هم مسیر سالمی پیدا نکرد. "
-                        "تنظیمات شبکه به حالت قبل برگشت."
+                        f"DNS این اینترنت مقصدهای {profile.name} را به یک آدرس داخلیِ بسته "
+                        f"هدایت می‌کند. تعویض DNS عمداً انجام نشد. WARP: {warp_failure}. "
+                        "هیچ تغییر شبکه‌ای باقی نماند."
                     )
                 else:
                     error = (

@@ -242,22 +242,40 @@ def probe_domains(domains: Iterable[str], timeout_s: float = 1.4) -> dict:
         tcp_ok = False
         tls_ok = False
         error = ""
+        socket_addresses = []
         try:
             addresses = socket.getaddrinfo(domain, 443, type=socket.SOCK_STREAM)
-            address = addresses[0][4][0] if addresses else ""
-            resolved = bool(address)
+            for item in addresses:
+                sockaddr = item[4]
+                host = str(sockaddr[0]) if sockaddr else ""
+                if host and host not in {str(row[0]) for row in socket_addresses}:
+                    socket_addresses.append((host, sockaddr))
+            address = socket_addresses[0][0] if socket_addresses else ""
+            resolved = bool(socket_addresses)
         except OSError as exc:
             error = str(exc)[:160]
         if resolved:
             started = time.perf_counter()
-            try:
-                with socket.create_connection((domain, 443), timeout=timeout_s) as stream:
-                    tcp_ok = True
-                    with tls_context.wrap_socket(stream, server_hostname=domain):
-                        tls_ok = True
-                        latency_ms = max(1, round((time.perf_counter() - started) * 1000))
-            except OSError as exc:
-                error = str(exc)[:160]
+            deadline = started + max(0.25, float(timeout_s))
+            for host, sockaddr in socket_addresses[:4]:
+                remaining = deadline - time.perf_counter()
+                if remaining <= 0:
+                    break
+                try:
+                    # Connect to the address that was actually measured above.
+                    # Resolving the hostname a second time here could select a
+                    # different answer and make DNS-route results misleading.
+                    with socket.create_connection(sockaddr, timeout=remaining) as stream:
+                        tcp_ok = True
+                        with tls_context.wrap_socket(stream, server_hostname=domain):
+                            tls_ok = True
+                            address = host
+                            latency_ms = max(
+                                1, round((time.perf_counter() - started) * 1000)
+                            )
+                            break
+                except OSError as exc:
+                    error = str(exc)[:160]
         return {
             "domain": domain, "resolved": resolved, "address": address,
             "tcp_ok": tcp_ok, "tls_ok": tls_ok,

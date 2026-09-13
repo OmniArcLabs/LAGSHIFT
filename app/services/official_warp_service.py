@@ -235,70 +235,87 @@ def connect_best(
         protocol for protocol in protocols
         if protocol.casefold() in {"masque", "wireguard"}
     )) or ("MASQUE", "WireGuard")
+    # Try distinct modes before spending the whole attempt budget on two
+    # transports of the first mode.  This matters for restricted networks
+    # where UDP, HTTPS and TLS modes can have completely different outcomes.
+    preferred_protocols = tuple(dict.fromkeys((
+        original_protocol if original_protocol.casefold() in {"masque", "wireguard"} else "",
+        *valid_protocols,
+    )))
+    preferred_protocols = tuple(value for value in preferred_protocols if value)
+    primary_attempts = [
+        (
+            mode,
+            "" if mode in {"doh", "dot"}
+            else preferred_protocols[index % len(preferred_protocols)],
+        )
+        for index, mode in enumerate(valid_modes)
+    ]
+    fallback_attempts = [
+        (mode, protocol)
+        for mode in valid_modes if mode not in {"doh", "dot"}
+        for protocol in preferred_protocols
+        if (mode, protocol) not in primary_attempts
+    ]
+    attempt_plan = tuple(dict.fromkeys((*primary_attempts, *fallback_attempts)))
     try:
-        for mode in valid_modes:
-            transports = ("",) if mode in {"doh", "dot"} else valid_protocols
-            for protocol in transports:
+        for mode, protocol in attempt_plan:
+            if cancelled():
+                cancel_requested = True
+                break
+            if attempts_used >= max(1, int(max_attempts)):
+                failures.append("attempt-budget-exhausted")
+                break
+            if time.monotonic() - started_at >= max(8.0, float(total_budget_s)):
+                failures.append("time-budget-exhausted")
+                break
+            attempts_used += 1
+            label = MODE_LABELS[mode]
+            suffix = f" با {protocol}…" if protocol else "…"
+            progress(f"در حال آزمایش «{label}»{suffix}")
+            _run_cli(cli_path, ["disconnect"])
+            mode_result = _run_cli(cli_path, ["mode", mode])
+            if mode_result.returncode != 0:
+                failures.append(f"{mode}: mode={mode_result.returncode}")
+                continue
+            if protocol:
+                protocol_result = _run_cli(
+                    cli_path, ["tunnel", "protocol", "set", protocol]
+                )
+                if protocol_result.returncode != 0:
+                    failures.append(f"{mode}/{protocol}: protocol={protocol_result.returncode}")
+                    continue
+            connect_result = _run_cli(cli_path, ["connect"])
+            if connect_result.returncode != 0:
+                failures.append(f"{mode}/{protocol or 'dns'}: connect={connect_result.returncode}")
+                continue
+            for _attempt in range(max(1, int(verify_attempts))):
                 if cancelled():
                     cancel_requested = True
                     break
-                if attempts_used >= max(1, int(max_attempts)):
-                    failures.append("attempt-budget-exhausted")
-                    break
-                if time.monotonic() - started_at >= max(8.0, float(total_budget_s)):
-                    failures.append("time-budget-exhausted")
-                    break
-                attempts_used += 1
-                label = MODE_LABELS[mode]
-                suffix = f" با {protocol}…" if protocol else "…"
-                progress(f"در حال آزمایش «{label}»{suffix}")
-                _run_cli(cli_path, ["disconnect"])
-                mode_result = _run_cli(cli_path, ["mode", mode])
-                if mode_result.returncode != 0:
-                    failures.append(f"{mode}: mode={mode_result.returncode}")
-                    continue
-                if protocol:
-                    protocol_result = _run_cli(
-                        cli_path, ["tunnel", "protocol", "set", protocol]
+                time.sleep(1.0)
+                cli_status = _cli_output(cli_path, ["status"])
+                last_status = cli_status
+                connected = _is_cli_connected(cli_status)
+                verification = _dns_works() if mode in {"doh", "dot"} else trace_says_warp_on()
+                if connected and verification:
+                    recovery_service.set_warp_intent(
+                        original_mode, original_protocol, mode
                     )
-                    if protocol_result.returncode != 0:
-                        failures.append(f"{mode}/{protocol}: protocol={protocol_result.returncode}")
-                        continue
-                connect_result = _run_cli(cli_path, ["connect"])
-                if connect_result.returncode != 0:
-                    failures.append(f"{mode}/{protocol or 'dns'}: connect={connect_result.returncode}")
-                    continue
-                for _attempt in range(max(1, int(verify_attempts))):
-                    if cancelled():
-                        cancel_requested = True
-                        break
-                    time.sleep(1.0)
-                    cli_status = _cli_output(cli_path, ["status"])
-                    last_status = cli_status
-                    connected = _is_cli_connected(cli_status)
-                    verification = _dns_works() if mode in {"doh", "dot"} else trace_says_warp_on()
-                    if connected and verification:
-                        recovery_service.set_warp_intent(
-                            original_mode, original_protocol, mode
-                        )
-                        recovery_service.safe_record("warp-connect", "success", mode)
-                        return {
-                            **base, "ok": True, "active": True,
-                            "trace_active": mode not in {"doh", "dot"},
-                            "started_by_app": True, "mode": mode, "mode_label": label,
-                            "protocol": protocol or "DNS", "original_mode": original_mode,
-                            "original_protocol": original_protocol,
-                            "message": f"{label} با موفقیت فعال و تأیید شد.",
-                        }
-                status_reason = " | ".join(line.strip() for line in last_status.splitlines()[:3])
-                failures.append(
-                    f"{mode}/{protocol or 'dns'}: " + (status_reason or "verification-timeout")
-                )
-                if cancel_requested:
-                    break
-            if cancel_requested or attempts_used >= max(1, int(max_attempts)) or (
-                time.monotonic() - started_at >= max(8.0, float(total_budget_s))
-            ):
+                    recovery_service.safe_record("warp-connect", "success", mode)
+                    return {
+                        **base, "ok": True, "active": True,
+                        "trace_active": mode not in {"doh", "dot"},
+                        "started_by_app": True, "mode": mode, "mode_label": label,
+                        "protocol": protocol or "DNS", "original_mode": original_mode,
+                        "original_protocol": original_protocol,
+                        "message": f"{label} با موفقیت فعال و تأیید شد.",
+                    }
+            status_reason = " | ".join(line.strip() for line in last_status.splitlines()[:3])
+            failures.append(
+                f"{mode}/{protocol or 'dns'}: " + (status_reason or "verification-timeout")
+            )
+            if cancel_requested:
                 break
     except (OSError, subprocess.SubprocessError) as exc:
         failures.append(type(exc).__name__)

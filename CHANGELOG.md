@@ -34,6 +34,11 @@ All notable public changes to LAGSHIFT are documented here. The format follows
   Qt opacity-animation callback is lost.
 - Failed updates now roll back when the newly installed Qt/Python runtime cannot
   complete its own health check.
+- AppRoute now recognizes repeated private DNS sinkhole answers and skips the
+  ineffective DNS/UAC loop, then tests distinct official WARP modes within a
+  short bounded window.
+- Application endpoint probes connect to the exact resolved address while
+  preserving TLS SNI, preventing a second DNS lookup from invalidating results.
 
 ## [1.1.0] - 2026-09-11
 
