@@ -42,6 +42,7 @@ a = Analysis(
         (str(root / "app" / "resources" / "branding" / "*.png"), "app/resources/branding"),
         (str(root / "app" / "resources" / "app_icons" / "*.svg"), "app/resources/app_icons"),
         (str(root / "app" / "resources" / "domestic_traffic_catalog.json"), "app/resources"),
+        (str(root / "app" / "resources" / "iran_network_allocations.json"), "app/resources"),
         *license_data,
     ],
     hiddenimports=[],

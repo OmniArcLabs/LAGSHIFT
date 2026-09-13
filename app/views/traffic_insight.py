@@ -367,7 +367,8 @@ class TrafficInsightWidget(QWidget):
         self.details_btn.setEnabled(True)
         colors = {
             "domestic": "#67E8B2", "likely_domestic": "#8BE7C0",
-            "mixed": "#FFD166", "unknown": "#FFB3BA",
+            "mixed": "#FFD166", "likely_full": "#FFCB77",
+            "unknown": "#FFB3BA",
         }
         self.result_title.setText(result.title)
         self.result_title.setStyleSheet(
@@ -397,6 +398,11 @@ class TrafficInsightWidget(QWidget):
         for index, step in enumerate(result.steps, start=1):
             state = "ثبت‌شده" if step.registered else "تأییدنشده"
             evidence = f" ({' و '.join(step.evidence)})" if step.evidence else ""
+            location = {
+                "iran": "تخصیص IP ایران",
+                "foreign": "خارج از تخصیص IP ایران",
+                "mixed": "IPهای ترکیبی",
+            }.get(step.network_location, "موقعیت نامشخص")
             families = []
             if any(":" not in address for address in step.addresses):
                 families.append("IPv4")
@@ -404,7 +410,7 @@ class TrafficInsightWidget(QWidget):
                 families.append("IPv6")
             self.result_details.addItem(
                 f"مسیر {index}: {step.host} · HTTP {step.status} · {state}{evidence} · "
-                f"{'+'.join(families) or 'IP نامشخص'} · {', '.join(step.addresses)}"
+                f"{location} · {'+'.join(families) or 'IP نامشخص'} · {', '.join(step.addresses)}"
             )
         if result.warning:
             self.result_details.addItem("⚠ " + result.warning)
@@ -418,6 +424,13 @@ class TrafficInsightWidget(QWidget):
         if result.catalog_updated_at:
             source_line += f" · بروزرسانی {result.catalog_updated_at}"
         self.result_details.addItem(source_line)
+        if result.network_catalog_source:
+            self.result_details.addItem(
+                "موقعیت IP: " + result.network_catalog_source
+                + (f" · نسخه {result.network_catalog_revision}"
+                   if result.network_catalog_revision else "")
+                + " · فقط نشانهٔ موقعیت، نه تأیید تعرفه"
+            )
         self.result_details.setVisible(self.details_btn.isChecked())
         if self.history_check.isChecked():
             traffic_tariff_service.remember_result(result)
@@ -437,7 +450,8 @@ class TrafficInsightWidget(QWidget):
     def _render_history(self):
         labels = {
             "domestic": "ثبت‌شده", "likely_domestic": "احتمالاً داخلی",
-            "mixed": "ترکیبی", "unknown": "تأییدنشده",
+            "mixed": "ترکیبی", "likely_full": "احتمالاً تمام‌بها",
+            "unknown": "تأییدنشده",
         }
         self.history_list.clear()
         rows = traffic_tariff_service.load_history()
@@ -470,11 +484,20 @@ class TrafficInsightWidget(QWidget):
         ]
         for index, step in enumerate(result.steps, start=1):
             state = "ثبت‌شده" if step.registered else "تأییدنشده"
+            location = {
+                "iran": "IR allocation", "foreign": "non-IR allocation",
+                "mixed": "mixed allocation",
+            }.get(step.network_location, "unknown allocation")
             lines.append(
                 f"مسیر {index}: {step.host} | {', '.join(step.addresses)} | "
-                f"HTTP {step.status} | {state}"
+                f"HTTP {step.status} | {state} | {location}"
             )
         lines.append(f"فهرست: {result.catalog_source} | نسخه: {result.catalog_revision or 'نامشخص'}")
+        if result.network_catalog_source:
+            lines.append(
+                f"موقعیت IP: {result.network_catalog_source} | "
+                f"نسخه: {result.network_catalog_revision or 'نامشخص'} | اثبات تعرفه نیست"
+            )
         if result.external_checked:
             lines.append(f"منبع کمکی: {result.external_source} | پاسخ ثالث و غیرتضمینی")
         if result.catalog_updated_at:

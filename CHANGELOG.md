@@ -15,6 +15,8 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 - Added an optional, host-only LinkIrani lookup whose third-party result is
   always labeled probable rather than official billing evidence.
 - Added simple live progress and an expandable technical view to Traffic Insight.
+- Added a bundled RIPE NCC-derived Iran IPv4/IPv6 allocation catalog so Traffic
+  Insight remains useful when the optional LinkIrani lookup is disabled.
 
 ### Changed
 
@@ -23,6 +25,8 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 - Centralized hidden Windows child-process settings for network diagnostics to
   prevent console windows and taskbar flashes.
 - Updated the privacy notice to 1.4 and made all new external lookups opt-in.
+- Traffic Insight now distinguishes probable Iranian hosting, probable normal-rate
+  hosting and mixed allocation evidence without presenting location as tariff proof.
 
 ### Fixed
 

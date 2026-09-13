@@ -721,6 +721,12 @@ class ProductFoundationTests(unittest.TestCase):
         self.assertIn("PySide6.__version__ == '6.8.3'", script)
         self.assertIn("shiboken6.__version__ == '6.8.3'", script)
 
+    def test_release_bundle_contains_offline_iran_network_catalog(self):
+        spec = (Path(__file__).resolve().parents[1] / "LAGSHIFT.spec").read_text(
+            encoding="utf-8"
+        )
+        self.assertIn("iran_network_allocations.json", spec)
+
     def test_signed_release_pipeline_signs_inner_layers_before_packaging(self):
         script = (Path(__file__).resolve().parents[1] / "build-installer.ps1").read_text(
             encoding="utf-8"

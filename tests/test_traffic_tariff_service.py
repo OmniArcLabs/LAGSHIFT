@@ -2,6 +2,7 @@ import unittest
 import json
 import tempfile
 import base64
+import ipaddress
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -131,14 +132,47 @@ class TrafficTariffTests(unittest.TestCase):
             )
         self.assertEqual(opener.open.call_count, 1)
 
-    def test_unlisted_ir_domain_remains_unknown(self):
+    def test_unlisted_ir_domain_on_foreign_allocation_is_probably_full_rate(self):
         opener = MagicMock()
         opener.open.return_value = _Response(200, {"Content-Length": "2048"})
         result = tariff.analyze_url(
             "https://example.ir/file", resolver=lambda _host: ("8.8.8.8",), opener=opener
         )
-        self.assertEqual(result.classification, "unknown")
+        self.assertEqual(result.classification, "likely_full")
         self.assertEqual(result.content_length, 2048)
+
+    def test_offline_iran_allocation_is_useful_without_linkirani(self):
+        opener = MagicMock()
+        opener.open.return_value = _Response(200)
+        locations = tariff.IranNetworkCatalog(
+            revision="test",
+            source_name="RIPE NCC test",
+            networks=(ipaddress.ip_network("5.22.0.0/17"),),
+        )
+        result = tariff.analyze_url(
+            "https://download.example/file.zip",
+            iran_catalog=locations,
+            resolver=lambda _host: ("5.22.1.10",),
+            opener=opener,
+        )
+        self.assertEqual(result.classification, "likely_domestic")
+        self.assertEqual(result.confidence, "پایین")
+        self.assertFalse(result.external_checked)
+        self.assertIn("RIPE NCC", result.reasons[0])
+
+    def test_mixed_iran_and_foreign_addresses_remain_unknown(self):
+        opener = MagicMock()
+        opener.open.return_value = _Response(200)
+        locations = tariff.IranNetworkCatalog(
+            networks=(ipaddress.ip_network("5.22.0.0/17"),),
+        )
+        result = tariff.analyze_url(
+            "https://dual.example/file.zip",
+            iran_catalog=locations,
+            resolver=lambda _host: ("5.22.1.10", "8.8.8.8"),
+            opener=opener,
+        )
+        self.assertEqual(result.classification, "unknown")
 
     def test_signed_query_is_used_but_never_exposed(self):
         opener = MagicMock()

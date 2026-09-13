@@ -18,6 +18,7 @@ import urllib.request
 from dataclasses import replace
 from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
+from functools import lru_cache
 from pathlib import Path
 from typing import Callable, Iterable
 
@@ -108,6 +109,35 @@ class TariffCatalog:
 
 
 @dataclass(frozen=True)
+class IranNetworkCatalog:
+    """Offline RIR allocation evidence; never treated as tariff proof."""
+
+    revision: str = ""
+    source_name: str = ""
+    source_url: str = ""
+    networks: tuple[ipaddress._BaseNetwork, ...] = ()
+
+    def classify(self, addresses: Iterable[str]) -> str:
+        flags: list[bool] = []
+        for value in addresses:
+            try:
+                address = ipaddress.ip_address(value)
+            except ValueError:
+                continue
+            flags.append(any(
+                address.version == network.version and address in network
+                for network in self.networks
+            ))
+        if not flags:
+            return "unknown"
+        if all(flags):
+            return "iran"
+        if any(flags):
+            return "mixed"
+        return "foreign"
+
+
+@dataclass(frozen=True)
 class RedirectStep:
     url: str
     host: str
@@ -116,6 +146,7 @@ class RedirectStep:
     content_length: int | None = None
     registered: bool = False
     evidence: tuple[str, ...] = field(default_factory=tuple)
+    network_location: str = "unknown"
 
 
 @dataclass(frozen=True)
@@ -133,6 +164,9 @@ class TariffResult:
     catalog_source: str = ""
     catalog_updated_at: str = ""
     catalog_source_url: str = ""
+    network_catalog_revision: str = ""
+    network_catalog_source: str = ""
+    network_catalog_source_url: str = ""
     insecure_path: bool = False
     checked_at: str = ""
     operator_name: str = "نامشخص"
@@ -261,6 +295,7 @@ def analyze_url(
     value: str,
     catalog: TariffCatalog | None = None,
     *,
+    iran_catalog: IranNetworkCatalog | None = None,
     warp_or_vpn_active: bool = False,
     operator_name: str = "نامشخص",
     operator_source: str = "manual",
@@ -271,6 +306,7 @@ def analyze_url(
     opener=None,
 ) -> TariffResult:
     catalog = catalog or TariffCatalog()
+    iran_catalog = iran_catalog or load_iran_network_catalog()
     opener = opener or urllib.request.build_opener(_NoRedirect())
     current_request = _request_url(value)
     requested = sanitize_url(value)
@@ -304,6 +340,7 @@ def analyze_url(
             status = int(getattr(response, "status", None) or response.getcode())
             length = _content_length(response.headers)
             evidence = catalog.evidence(host, addresses)
+            network_location = iran_catalog.classify(addresses)
             steps.append(RedirectStep(
                 url=current,
                 host=host,
@@ -312,6 +349,7 @@ def analyze_url(
                 content_length=length,
                 registered=bool(evidence),
                 evidence=evidence,
+                network_location=network_location,
             ))
             if status not in _REDIRECT_CODES:
                 break
@@ -344,12 +382,28 @@ def analyze_url(
         reasons = (
             "بخشی از مسیر ثبت شده، اما میزبان تحویل‌دهندهٔ بایت‌های اصلی فایل تأیید نشده است.",
         )
+    elif steps[-1].network_location == "iran":
+        classification = "likely_domestic"
+        title = "میزبان نهایی در محدودهٔ شبکه‌های ایران قرار دارد"
+        confidence = "پایین" if not warp_or_vpn_active else "محدود"
+        reasons = (
+            "IP میزبان نهایی در فهرست آفلاین تخصیص‌های ایرانِ RIPE NCC قرار دارد.",
+            "این نشانهٔ میزبانی ایران است، نه تأیید قطعی تعرفهٔ نیم‌بها توسط اپراتور.",
+        )
+    elif steps[-1].network_location == "foreign":
+        classification = "likely_full"
+        title = "این مسیر احتمالاً با تعرفهٔ عادی محاسبه می‌شود"
+        confidence = "پایین" if not warp_or_vpn_active else "محدود"
+        reasons = (
+            "IP میزبان نهایی در تخصیص‌های ثبتی شبکه‌های ایران پیدا نشد.",
+            "CDN و سیاست اپراتور می‌توانند نتیجه را تغییر دهند؛ این پاسخ تضمین صورتحساب نیست.",
+        )
     else:
         classification = "unknown"
         title = "تعرفه از روی اطلاعات معتبر قابل تأیید نیست"
         confidence = "نامشخص"
         reasons = (
-            "دامنه یا IP نهایی در فهرست معتبر داخلی پیدا نشد.",
+            "مقصد چند IP با موقعیت ثبتی متفاوت دارد یا اطلاعات کافی پیدا نشد.",
             "پسوند .ir یا میزبانی داخل ایران به‌تنهایی تضمین تعرفه نیست.",
         )
     warning = ""
@@ -375,6 +429,9 @@ def analyze_url(
         catalog_source=catalog.source_name,
         catalog_updated_at=catalog.updated_at,
         catalog_source_url=catalog.source_url,
+        network_catalog_revision=iran_catalog.revision,
+        network_catalog_source=iran_catalog.source_name,
+        network_catalog_source_url=iran_catalog.source_url,
         insecure_path=insecure_path,
         checked_at=datetime.now().astimezone().isoformat(timespec="seconds"),
         operator_name=str(operator_name).strip()[:40] or "نامشخص",
@@ -397,6 +454,27 @@ def load_bundled_catalog(path: Path | None = None) -> TariffCatalog:
         return TariffCatalog()
 
 
+@lru_cache(maxsize=1)
+def load_iran_network_catalog(path: Path | None = None) -> IranNetworkCatalog:
+    target = path or Path(__file__).resolve().parents[1] / "resources" / "iran_network_allocations.json"
+    try:
+        document = json.loads(target.read_text(encoding="utf-8"))
+        values = document.get("networks", [])
+        if document.get("version") != 1 or not isinstance(values, list):
+            raise ValueError("invalid catalog")
+        if not values or len(values) > 10_000:
+            raise ValueError("invalid catalog size")
+        networks = tuple(ipaddress.ip_network(str(value), strict=True) for value in values)
+        return IranNetworkCatalog(
+            revision=str(document.get("revision", ""))[:40],
+            source_name=str(document.get("source_name", "RIPE NCC"))[:120],
+            source_url=str(document.get("source_url", ""))[:500],
+            networks=networks,
+        )
+    except (OSError, ValueError, TypeError, json.JSONDecodeError):
+        return IranNetworkCatalog()
+
+
 def merge_external_evidence(result: TariffResult, evidence) -> TariffResult:
     """Merge third-party evidence without presenting it as an official catalog."""
     if not getattr(evidence, "available", False):
@@ -405,7 +483,12 @@ def merge_external_evidence(result: TariffResult, evidence) -> TariffResult:
     registered = bool(getattr(evidence, "registered", False))
     in_iran = bool(getattr(evidence, "in_iran", False))
     warning = result.warning
-    if result.classification == "unknown" and registered:
+    if result.classification in {"unknown", "likely_domestic", "likely_full"} and registered:
+        location_note = (
+            "این پاسخ با نشانهٔ آفلاین موقعیت شبکه هم‌جهت است."
+            if result.classification == "likely_domestic"
+            else "این پاسخ از نشانهٔ صرفاً مکانی شبکه دقیق‌تر است."
+        )
         return replace(
             result,
             classification="likely_domestic",
@@ -413,6 +496,7 @@ def merge_external_evidence(result: TariffResult, evidence) -> TariffResult:
             confidence="متوسط",
             reasons=(
                 f"{source} میزبان نهایی را ثبت‌شده گزارش کرده است.",
+                location_note,
                 "این پاسخ منبع ثالث است و جای استعلام اپراتور یا فهرست رسمی را نمی‌گیرد.",
             ),
             external_source=source,
@@ -532,7 +616,7 @@ def load_history() -> list[dict]:
         path_hash = str(item.get("path_hash", ""))[:16]
         classification = str(item.get("classification", "unknown"))
         if host and len(path_hash) == 16 and classification in {
-            "domestic", "likely_domestic", "mixed", "unknown"
+            "domestic", "likely_domestic", "likely_full", "mixed", "unknown"
         }:
             clean.append({
                 "host": host,

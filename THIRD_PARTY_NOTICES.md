@@ -56,6 +56,15 @@ The Xbox, VS Code and Copilot tiles use original generic glyphs rather than
 Microsoft brand assets. The ChatGPT tile uses the OpenAI service-identification
 mark under the same nominative-use notice above.
 
+## RIPE NCC delegated statistics
+
+Traffic Insight bundles a mechanically generated subset of the public RIPE NCC
+delegated statistics containing IPv4 and IPv6 resources registered to IR.
+Source: https://ftp.ripe.net/pub/stats/ripencc/delegated-ripencc-latest
+
+The data is used only as offline network-location evidence. It does not prove
+physical hosting location or discounted billing eligibility.
+
 ## Public release exclusions
 
 The public LAGSHIFT 1.0 package does not bundle Xray, sing-box, Wintun, imported
