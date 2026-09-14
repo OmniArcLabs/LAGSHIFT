@@ -39,12 +39,24 @@ jobs:
           print('cryptography OpenSSL:', backend.openssl_version_text());
           AESGCM.generate_key(bit_length=256)"
       - name: Run tests
-        run: >-
-          python -m unittest -v
-          tests.test_macos_platform
-          tests.test_macos_ui_smoke
-          tests.test_security_adversarial
-          tests.test_traffic_tariff_service
+        shell: bash
+        run: |
+          set +e
+          python -m unittest -v \
+            tests.test_macos_platform \
+            tests.test_macos_ui_smoke \
+            tests.test_security_adversarial \
+            tests.test_traffic_tariff_service 2>&1 | tee macos-tests.log
+          status=${PIPESTATUS[0]}
+          set -e
+          if [[ $status -ne 0 ]]; then
+            output="$(tail -n 80 macos-tests.log)"
+            output="${output//'%'/'%25'}"
+            output="${output//$'\r'/'%0D'}"
+            output="${output//$'\n'/'%0A'}"
+            echo "::error title=macOS native UI/test failure::${output:0:6000}"
+            exit "$status"
+          fi
       - name: Build and verify native app
         run: ./build-macos.sh
       - name: Upload ${{ matrix.label }} packages
