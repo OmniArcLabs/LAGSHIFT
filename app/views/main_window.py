@@ -535,7 +535,10 @@ class MainWindow(QMainWindow):
         self.tabs.addTab(self.apps_tab, "🧩 برنامه‌ها")
         self.tabs.addTab(self.dns_tab, "🌐 DNS")
         self.tabs.addTab(self.tunnel_tab, "🛡 اتصال")
-        self.tabs.addTab(self.tools_tab, "🧭 ابزارها")
+        self.tabs.addTab(
+            self.tools_tab,
+            "🧭 لینک نیم‌بها" if IS_MACOS else "🧭 ابزارها",
+        )
         self.tabs.addTab(self.settings_tab, "⚙ تنظیمات")
         root.addWidget(self.tabs, 1)
 
@@ -1547,7 +1550,8 @@ class MainWindow(QMainWindow):
         self.auto_update_check.setChecked(self.settings.get("automatic_update_checks", True))
         update_layout.addWidget(self.auto_update_check)
         update_channel_row = QHBoxLayout()
-        update_channel_row.addWidget(QLabel("کانال انتشار:"))
+        self.update_channel_label = QLabel("کانال انتشار:")
+        update_channel_row.addWidget(self.update_channel_label)
         self.update_channel_combo = QComboBox()
         self.update_channel_combo.addItem("پایدار · پیشنهادشده", "stable")
         self.update_channel_combo.addItem("آزمایشی · دریافت زودتر قابلیت‌ها", "beta")
@@ -1574,17 +1578,16 @@ class MainWindow(QMainWindow):
         update_layout.addLayout(update_actions)
         if IS_MACOS:
             self.auto_update_check.setChecked(False)
-            self.auto_update_check.setEnabled(False)
-            self.update_channel_combo.setEnabled(False)
-            self.check_update_btn.setEnabled(False)
+            self.auto_update_check.hide()
+            self.update_channel_label.hide()
+            self.update_channel_combo.hide()
+            self.check_update_btn.setText("بازکردن دانلود نسخهٔ macOS")
+            self.check_update_btn.setEnabled(True)
             self.download_update_btn.hide()
-            self.install_repair_btn.setEnabled(False)
-            self.install_repair_btn.setToolTip(
-                "ترمیم خودکار فعلاً مخصوص نصب‌کنندهٔ ویندوز است"
-            )
+            self.install_repair_btn.hide()
             self.update_status_label.setText(
-                f"نسخهٔ آزمایشی macOS: {APP_VERSION} · آپدیت از صفحهٔ Releases دریافت می‌شود؛ "
-                "فایل Windows هرگز روی مک پیشنهاد یا اجرا نمی‌شود."
+                f"نسخهٔ آزمایشی macOS: {APP_VERSION} · برای جلوگیری از نصب فایل ویندوز، "
+                "آپدیت این Preview فعلاً از صفحهٔ GitHub دریافت می‌شود."
             )
         layout.addWidget(update_card)
 
@@ -1789,7 +1792,14 @@ class MainWindow(QMainWindow):
         self.update_channel_combo.currentIndexChanged.connect(
             self._on_update_channel_changed
         )
-        self.check_update_btn.clicked.connect(lambda: self._start_update_check(True))
+        if IS_MACOS:
+            self.check_update_btn.clicked.connect(
+                lambda: QDesktopServices.openUrl(QUrl(
+                    "https://github.com/OmniArcLabs/LAGSHIFT/releases"
+                ))
+            )
+        else:
+            self.check_update_btn.clicked.connect(lambda: self._start_update_check(True))
         self.download_update_btn.clicked.connect(self._download_pending_update)
         self.terms_review_btn.clicked.connect(
             lambda: TermsDialog(self, review_only=True).exec()
@@ -2213,6 +2223,13 @@ class MainWindow(QMainWindow):
         for a in adapters:
             self.adapter_combo.addItem(a.name, userData=a)
         self.apps_tab.set_adapters(adapters)
+        available = bool(adapters)
+        self.toggle_btn.setEnabled(available and not self.vm._busy)
+        if not available:
+            self.dns_state_label.setText(
+                "هیچ سرویس شبکهٔ فعال macOS پیدا نشد. Wi-Fi یا Ethernet را روشن کن و «به‌روزرسانی» را بزن."
+                if IS_MACOS else "هیچ کارت شبکهٔ فعالی پیدا نشد."
+            )
 
     @staticmethod
     def _dns_profile_text(profile, include_address: bool = True) -> str:
@@ -2276,7 +2293,7 @@ class MainWindow(QMainWindow):
     def _on_busy_changed(self, busy: bool):
         # جلوگیری از کلیک مکرر که باعث کرش می‌شد
         self.brand_mark.set_busy(busy)
-        self.toggle_btn.setEnabled(not busy)
+        self.toggle_btn.setEnabled(not busy and self.adapter_combo.currentData() is not None)
         self.refresh_btn.setEnabled(not busy)
         self.dns_preference_combo.setEnabled(not busy)
         self.dns_goal_combo.setEnabled(not busy)

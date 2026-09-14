@@ -43,10 +43,36 @@ class MacOSPlatformTests(unittest.TestCase):
                 return completed("IP address: none\n")
             raise AssertionError(args)
 
-        with patch.object(adapter_service, "_networksetup", side_effect=fake_networksetup):
+        with (
+            patch.object(adapter_service, "_networksetup", side_effect=fake_networksetup),
+            patch.object(adapter_service, "_default_macos_interface", return_value=""),
+            patch.object(adapter_service, "_macos_service_devices", return_value={}),
+        ):
             rows = adapter_service._list_macos_services()
         self.assertEqual([row.name for row in rows], ["Wi-Fi"])
         self.assertEqual(rows[0].current_dns, ["1.1.1.1", "1.0.0.1"])
+
+    def test_macos_default_route_service_survives_localized_getinfo(self):
+        def fake_networksetup(*args):
+            if args == ("-listallnetworkservices",):
+                return completed("An asterisk denotes disabled services.\nHome Wi-Fi\nEthernet\n")
+            if args == ("-getinfo", "Home Wi-Fi"):
+                return completed("نشانی آی‌پی: هیچ\n")
+            if args == ("-getdnsservers", "Home Wi-Fi"):
+                return completed("There aren't any DNS Servers set on Home Wi-Fi.\n")
+            if args == ("-getinfo", "Ethernet"):
+                return completed("IP address: none\n")
+            raise AssertionError(args)
+
+        with (
+            patch.object(adapter_service, "_networksetup", side_effect=fake_networksetup),
+            patch.object(adapter_service, "_default_macos_interface", return_value="en0"),
+            patch.object(adapter_service, "_macos_service_devices", return_value={
+                "Home Wi-Fi": "en0", "Ethernet": "en7",
+            }),
+        ):
+            rows = adapter_service._list_macos_services()
+        self.assertEqual([row.name for row in rows], ["Home Wi-Fi"])
 
     def test_macos_dns_restores_exact_static_servers(self):
         with tempfile.TemporaryDirectory() as folder:

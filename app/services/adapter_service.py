@@ -48,6 +48,43 @@ def _networksetup(*arguments: str) -> subprocess.CompletedProcess:
     )
 
 
+def _default_macos_interface() -> str:
+    try:
+        result = subprocess.run(
+            ["/sbin/route", "-n", "get", "default"], capture_output=True,
+            text=True, encoding="utf-8", errors="replace", timeout=8,
+        )
+    except (OSError, subprocess.SubprocessError):
+        return ""
+    if result.returncode == 0:
+        for line in result.stdout.splitlines():
+            key, separator, value = line.partition(":")
+            if separator and key.strip().casefold() == "interface":
+                return value.strip()
+    return ""
+
+
+def _macos_service_devices() -> dict[str, str]:
+    """Map network service names to BSD devices from stable service-order output."""
+    listed = _networksetup("-listnetworkserviceorder")
+    if listed.returncode != 0:
+        return {}
+    mapping: dict[str, str] = {}
+    pending = ""
+    for raw in listed.stdout.splitlines():
+        line = raw.strip()
+        if line.startswith("(") and ")" in line and "Device:" not in line:
+            pending = line.split(")", 1)[1].strip()
+            if pending.startswith("*"):
+                pending = ""
+        elif pending and "Device:" in line:
+            device = line.split("Device:", 1)[1].split(")", 1)[0].strip()
+            if device:
+                mapping[pending] = device
+            pending = ""
+    return mapping
+
+
 def _list_macos_services() -> List[NetworkAdapter]:
     """Return enabled macOS network services using stable networksetup output."""
     try:
@@ -55,6 +92,8 @@ def _list_macos_services() -> List[NetworkAdapter]:
         if listed.returncode != 0:
             return []
         result: list[NetworkAdapter] = []
+        default_interface = _default_macos_interface()
+        service_devices = _macos_service_devices()
         for raw in listed.stdout.splitlines():
             service = raw.strip()
             if not service or service.startswith("An asterisk") or service.startswith("*"):
@@ -63,7 +102,12 @@ def _list_macos_services() -> List[NetworkAdapter]:
             if info.returncode != 0:
                 continue
             text = info.stdout.casefold()
-            if "ip address: none" in text or "ip address: 0.0.0.0" in text:
+            is_default = bool(
+                default_interface and service_devices.get(service) == default_interface
+            )
+            if not is_default and (
+                "ip address: none" in text or "ip address: 0.0.0.0" in text
+            ):
                 continue
             dns = _networksetup("-getdnsservers", service)
             servers = [
@@ -74,6 +118,11 @@ def _list_macos_services() -> List[NetworkAdapter]:
                 name=service, description="سرویس شبکه macOS",
                 is_enabled=True, current_dns=servers,
             ))
+        # Put the actual default route first so DNS applies to the connection
+        # carrying the user's traffic even when multiple services are active.
+        result.sort(
+            key=lambda item: service_devices.get(item.name) != default_interface
+        )
         return result
     except (OSError, subprocess.SubprocessError):
         return []

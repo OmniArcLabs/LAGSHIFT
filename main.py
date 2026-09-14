@@ -70,7 +70,13 @@ def main():
         raise SystemExit(privileged_helper.run_helper(sys.argv[index + 1], sys.argv[index + 2]))
 
     app = QApplication(sys.argv)
-    app.setStyle(NoDottedFocusStyle(app.style()))
+    # The proxy exists solely to remove Windows' dotted focus rectangle.
+    # Wrapping the native Cocoa style can break native hit-testing/focus on
+    # some PySide/macOS combinations, so macOS must keep its own Qt style.
+    if sys.platform == "win32":
+        app.setStyle(NoDottedFocusStyle(app.style()))
+    from app.services.tls_service import configure_tls_trust
+    configure_tls_trust()
     load_brand_fonts()
     app.setApplicationName(APP_NAME)
     app.setApplicationDisplayName(APP_DISPLAY_NAME)
@@ -152,7 +158,7 @@ def main():
             settings_service.set_value("brand_intro_seen", True)
             window.setWindowOpacity(0.0)
             window.show()
-            if settings.get("reduce_motion", False):
+            if settings.get("reduce_motion", False) or sys.platform == "darwin":
                 window.setWindowOpacity(1.0)
                 return
             window.play_startup_reveal()

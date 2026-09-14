@@ -29,6 +29,7 @@ datas = [
     (str(root / "QUICKSTART.md"), "docs"),
     *package_licenses("psutil"),
     *package_licenses("cryptography"),
+    *package_licenses("certifi"),
 ]
 
 a = Analysis(

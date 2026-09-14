@@ -42,6 +42,7 @@ jobs:
         run: >-
           python -m unittest -v
           tests.test_macos_platform
+          tests.test_macos_ui_smoke
           tests.test_security_adversarial
           tests.test_traffic_tariff_service
       - name: Build and verify native app
