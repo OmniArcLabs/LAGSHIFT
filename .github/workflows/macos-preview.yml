@@ -42,7 +42,7 @@ jobs:
         shell: bash
         run: |
           set +e
-          python -m unittest -v \
+          python -m unittest -v -f \
             tests.test_macos_platform \
             tests.test_macos_ui_smoke \
             tests.test_security_adversarial \
