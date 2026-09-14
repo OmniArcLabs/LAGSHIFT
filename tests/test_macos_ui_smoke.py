@@ -29,7 +29,7 @@ class MacOSUiSmokeTests(unittest.TestCase):
             patch.object(MainWindow, "_build_tray", lambda window: setattr(window, "tray_icon", None)),
         ):
             window = MainWindow()
-        self.addCleanup(window.close)
+        self.addCleanup(window.deleteLater)
         window.show()
         self.app.processEvents()
 
