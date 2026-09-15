@@ -7,8 +7,9 @@ launcher profiles.
 
 ## Included in the preview
 
-- Smart DNS with exact restoration of the selected macOS network service
-- App Access profiles with DNS/TCP/TLS destination checks
+- FusionDNS Hybrid selection across Iranian and global resolvers, with exact
+  restoration of the selected macOS network service
+- App Access profiles with per-destination DNS/TCP/TLS checks
 - Official Cloudflare WARP discovery and control through Cloudflare's signed app
 - RouteDNA local measurements and privacy-first local history
 - Traffic Insight and Iranian traffic-status checks
@@ -17,7 +18,8 @@ launcher profiles.
 The application does not provide a proprietary relay or VPN. App Access may
 change the selected network service's DNS or ask the separately installed,
 official Cloudflare WARP client to connect. It does not inject into apps or read
-their traffic content.
+their traffic content. FusionDNS compares resolver families and applies one
+verified profile at a time; it is not a simultaneous split-DNS proxy.
 
 ## Installation and Gatekeeper
 

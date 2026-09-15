@@ -926,9 +926,14 @@ class AppAccessWidget(QWidget):
         self._set_controls_locked(True)
         dns_name = result.get("dns_name", "تنظیم فعلی")
         route = result.get("route", "current")
+        coverage = float(result.get("dns_coverage_rate", 0) or 0)
+        hybrid_suffix = (
+            f" · انتخاب ترکیبی FusionDNS · پوشش {coverage:.0f}٪"
+            if route == "dns" and result.get("dns_hybrid") else ""
+        )
         route_label = {
             "current": "مسیر مستقیم · بدون تغییر",
-            "dns": f"DNS هوشمند · {dns_name}",
+            "dns": f"DNS هوشمند · {dns_name}{hybrid_suffix}",
             "warp": result.get("warp_mode_label", "WARP رسمی"),
         }.get(route, dns_name)
         warp_label = "فعال و تأییدشده" if route == "warp" or result.get("warp_active") else "دست‌نخورده"
@@ -961,7 +966,7 @@ class AppAccessWidget(QWidget):
         )
         route_steps = {
             "current": "✓ اتصال فعلی سالم   ·   — DNS لازم نشد   ·   — WARP لازم نشد   ·   ✓ برنامه آماده",
-            "dns": "✓ اتصال سنجیده شد   ·   ✓ DNS انتخاب شد   ·   ✓ مقصدها تأیید شد   ·   ✓ برنامه آماده",
+            "dns": "✓ اتصال سنجیده شد   ·   ✓ DNSهای ایرانی/خارجی مقایسه شدند   ·   ✓ مقصدها تأیید شد   ·   ✓ برنامه آماده",
             "warp": "✓ اتصال سنجیده شد   ·   ✓ DNS بررسی شد   ·   ✓ WARP تأیید شد   ·   ✓ برنامه آماده",
         }
         self.journey_steps.setText(route_steps.get(route, "✓ همهٔ بررسی‌های لازم کامل شد"))

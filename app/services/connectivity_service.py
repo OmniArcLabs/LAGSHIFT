@@ -245,6 +245,26 @@ def _endpoint_samples(server: str, domains=DNS_TEST_DOMAINS, rounds: int = 2) ->
         return [future.result() for future in jobs]
 
 
+def _domain_endpoint_samples(server: str, domains, rounds: int = 2) -> dict[str, list[int]]:
+    """Keep per-domain evidence so aggregate speed cannot hide a dead app endpoint."""
+    targets = tuple(dict.fromkeys(str(item).strip().lower() for item in domains if item))
+    if not server or not targets:
+        return {domain: [] for domain in targets}
+    measure_dns_query_ms(server, targets[0])
+    samples = {domain: [] for domain in targets}
+    with ThreadPoolExecutor(max_workers=max(1, len(targets) * rounds)) as executor:
+        jobs = {
+            executor.submit(measure_dns_query_ms, server, domain): domain
+            for _ in range(rounds) for domain in targets
+        }
+        for future in as_completed(jobs):
+            try:
+                samples[jobs[future]].append(future.result())
+            except Exception:
+                samples[jobs[future]].append(-1)
+    return samples
+
+
 def _summarize_samples(samples: list[int]) -> dict:
     valid = [value for value in samples if value >= 0]
     total = len(samples)
@@ -278,7 +298,12 @@ def calculate_dns_score(median_ms: int, jitter_ms: int, success_rate: float,
 def benchmark_dns_profile(profile, domains=None, rounds: int = 2) -> dict:
     test_domains = tuple(domains or DNS_TEST_DOMAINS)
     rounds = max(1, min(4, int(rounds)))
-    primary_samples = _endpoint_samples(profile.primary, test_domains, rounds=rounds)
+    primary_by_domain = _domain_endpoint_samples(
+        profile.primary, test_domains, rounds=rounds
+    )
+    primary_samples = [
+        sample for values in primary_by_domain.values() for sample in values
+    ]
     primary = _summarize_samples(primary_samples)
     secondary_samples = _endpoint_samples(profile.secondary, test_domains, rounds=1) if profile.secondary else []
     secondary = _summarize_samples(secondary_samples)
@@ -298,6 +323,17 @@ def benchmark_dns_profile(profile, domains=None, rounds: int = 2) -> dict:
         secondary_ok, bool(profile.doh_url), doh_ok,
     )
     label = "عالی" if score >= 85 else "خوب" if score >= 70 else "متوسط" if score >= 50 else "ضعیف"
+    domain_success = {
+        domain: round(
+            sum(value >= 0 for value in values) * 100.0 / len(values), 1
+        ) if values else 0.0
+        for domain, values in primary_by_domain.items()
+    }
+    covered_domains = sum(rate > 0 for rate in domain_success.values())
+    domain_count = len(domain_success)
+    coverage_rate = round(
+        covered_domains * 100.0 / domain_count, 1
+    ) if domain_count else 0.0
     return {
         "profile": profile, "name": profile.name, "score": score, "label": label,
         "median_ms": primary["median_ms"], "jitter_ms": primary["jitter_ms"],
@@ -306,6 +342,9 @@ def benchmark_dns_profile(profile, domains=None, rounds: int = 2) -> dict:
         "secondary_median_ms": secondary["median_ms"],
         "doh_supported": bool(profile.doh_url), "doh_ok": doh_ok,
         "doh_median_ms": doh["median_ms"],
+        "domain_success": domain_success,
+        "covered_domains": covered_domains, "domain_count": domain_count,
+        "coverage_rate": coverage_rate, "region": getattr(profile, "region", "global"),
     }
 
 
@@ -360,6 +399,49 @@ def rank_dns_profiles(profiles: list, progress=None,
     else:
         key = lambda item: (-item["score"], -item["success_rate"], item["median_ms"])
     return sorted(reliable, key=key)
+
+
+def rank_hybrid_dns_profiles(profiles: list, progress=None,
+                             preference: str = "balanced", domains=None,
+                             rounds: int = 2, limit: int = 4) -> list[dict]:
+    """Rank Iranian and global resolvers together while preserving route diversity.
+
+    This is selection, not a local DNS proxy: the returned candidates are still
+    applied one at a time and verified through the application's real TLS targets.
+    """
+    ranked = rank_dns_profiles(
+        profiles, progress=progress, preference=preference, goal="balanced",
+        domains=domains, rounds=rounds,
+    )
+    if not ranked:
+        return []
+    ranked = sorted(
+        ranked,
+        key=lambda item: (
+            -float(item.get("coverage_rate", 0)),
+            -float(item.get("success_rate", 0)),
+            -int(item.get("score", 0)),
+            int(item.get("median_ms", 999999)),
+        ),
+    )
+    limit = max(2, min(6, int(limit)))
+    finalists = list(ranked[:limit])
+    first_region = ranked[0].get("region", "global")
+    opposite = next(
+        (item for item in ranked if item.get("region", "global") != first_region),
+        None,
+    )
+    # Keep the true ranking order.  Diversity is added only by replacing the
+    # final slot, so a slow opposite-family resolver never jumps ahead of a
+    # healthier candidate merely because of its region label.
+    if opposite is not None and opposite not in finalists:
+        finalists[-1] = opposite
+    for item in finalists:
+        item["hybrid_selection"] = True
+        item["families_tested"] = sorted({
+            row.get("region", "global") for row in ranked
+        })
+    return finalists
 
 
 def select_fastest_dns(profiles: list):

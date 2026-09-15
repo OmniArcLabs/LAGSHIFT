@@ -779,7 +779,9 @@ class MainWindow(QMainWindow):
             "anti_sanction",
         )
         self.dns_goal_combo.addItem("🌍 پاسخ سریع‌تر سایت و شروع دانلود · DNS جهانی", "speed")
-        self.dns_goal_combo.addItem("🤖 انتخاب خودکار از بین همه DNSها", "balanced")
+        self.dns_goal_combo.addItem(
+            "🧬 FusionDNS · انتخاب هوشمند بین DNSهای ایرانی و خارجی", "balanced"
+        )
         goal_index = self.dns_goal_combo.findData(
             self.settings.get("dns_usage_goal", "balanced")
         )
@@ -2417,6 +2419,9 @@ class MainWindow(QMainWindow):
             "balanced": "ترکیبی",
         }
         goal_label = goal_labels.get(result.get("goal", "balanced"), "ترکیبی")
+        coverage = float(result.get("coverage_rate", 0) or 0)
+        if result.get("dns_hybrid"):
+            goal_label = f"FusionDNS · پوشش {coverage:.0f}٪"
         self.dns_score_title.setText(
             f"🏆 {result.get('name')} · {result.get('label')} · {goal_label} · {preference_label}"
         )
@@ -2432,6 +2437,8 @@ class MainWindow(QMainWindow):
             f"QProgressBar::chunk {{ background:{color}; border-radius:3px; }}"
         )
         self.dns_benchmark_status.setText(
+            "✅ DNSهای ایرانی و خارجی مقایسه شدند؛ یک مسیر کامل و تأییدشده انتخاب شد."
+            if result.get("dns_hybrid") else
             "✅ انتخاب بر اساس چند دامنه و چند نمونه؛ این عدد پینگ سرور بازی نیست."
         )
         if not self._running_game_name and not self.vm.tunnel_connected:

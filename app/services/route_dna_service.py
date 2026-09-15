@@ -402,15 +402,16 @@ def tournament(candidates: list[dict], purpose: str = "smart", limit: int = 3) -
 
 
 def personalize_ranked_dns(ranking: list[dict], context: dict, target: str) -> list[dict]:
-    """Use memory only as a tie-breaker; live benchmark remains dominant."""
+    """Use memory only as a tie-breaker; live endpoint coverage remains dominant."""
     decorated = []
     for index, row in enumerate(ranking):
         profile = row.get("profile")
         memory = prior(context, target, f"dns:{getattr(profile, 'name', '')}")
         live = float(row.get("score", 0) or 0)
+        coverage = float(row.get("coverage_rate", 0) or 0)
         bonus = min(4.0, memory["samples"] * 0.5) if memory["success_rate"] >= 70 else 0.0
-        decorated.append((-(live + bonus), index, row))
-    return [row for _, _, row in sorted(decorated)]
+        decorated.append((-coverage, -(live + bonus), index, row))
+    return [row for _, _, _, row in sorted(decorated)]
 
 
 def should_switch(active_score: int, candidate_score: int, bad_samples: int,

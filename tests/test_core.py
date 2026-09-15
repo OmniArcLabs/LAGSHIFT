@@ -330,6 +330,20 @@ class RouteDnaTests(unittest.TestCase):
         )
         self.assertEqual(ranked[0]["profile"].name, "Fast")
 
+    def test_route_dna_cannot_promote_partial_dns_over_complete_coverage(self):
+        partial = {
+            "profile": DnsProfile("Partial", "1.1.1.1"),
+            "score": 99, "coverage_rate": 50,
+        }
+        complete = {
+            "profile": DnsProfile("Complete", "8.8.8.8"),
+            "score": 75, "coverage_rate": 100,
+        }
+        ranked = route_dna_service.personalize_ranked_dns(
+            [partial, complete], {"network": "n", "purpose": "smart"}, "dns"
+        )
+        self.assertEqual(ranked[0]["profile"].name, "Complete")
+
     def test_hysteresis_requires_gain_and_repeated_bad_samples(self):
         self.assertFalse(route_dna_service.should_switch(70, 90, 1))
         self.assertFalse(route_dna_service.should_switch(70, 76, 3))
@@ -694,7 +708,7 @@ class ProductFoundationTests(unittest.TestCase):
             "def wait_for_app_access"
         )]
         self.assertEqual(block.count("privileged_helper.select_dns("), 1)
-        self.assertIn("ranking = ranking[:3]", block)
+        self.assertIn("ranking = ranking[:4]", block)
         self.assertIn("total_budget_s=18", block)
         self.assertIn("sinkhole_detected", block)
         self.assertIn("cancelled=cancelled", block)
@@ -1078,6 +1092,47 @@ class DnsSelectionTests(unittest.TestCase):
         bypass = connectivity_service.rank_dns_profiles(profiles, goal="anti_sanction")
         self.assertEqual([item["name"] for item in speed], ["Global"])
         self.assertEqual([item["name"] for item in bypass], ["Iran"])
+
+    @patch("app.services.connectivity_service.rank_dns_profiles")
+    def test_hybrid_dns_prefers_complete_app_coverage(self, rank_dns):
+        fast_partial = DnsProfile("Fast partial", "1.1.1.1", region="global")
+        complete = DnsProfile(
+            "Complete Iran", "10.0.0.1", region="iran", purpose="anti_sanction"
+        )
+        rank_dns.return_value = [
+            {
+                "profile": fast_partial, "name": fast_partial.name, "score": 96,
+                "median_ms": 12, "jitter_ms": 1, "success_rate": 75,
+                "coverage_rate": 75, "region": "global",
+            },
+            {
+                "profile": complete, "name": complete.name, "score": 82,
+                "median_ms": 55, "jitter_ms": 3, "success_rate": 100,
+                "coverage_rate": 100, "region": "iran",
+            },
+        ]
+        ranked = connectivity_service.rank_hybrid_dns_profiles(
+            [fast_partial, complete], domains=("login.example", "cdn.example")
+        )
+        self.assertEqual(ranked[0]["name"], "Complete Iran")
+        self.assertEqual({item["region"] for item in ranked}, {"iran", "global"})
+        self.assertTrue(all(item["hybrid_selection"] for item in ranked))
+
+    @patch("app.services.connectivity_service._endpoint_samples", return_value=[])
+    @patch("app.services.connectivity_service._domain_endpoint_samples")
+    def test_dns_benchmark_reports_per_domain_coverage(self, domain_samples, _secondary):
+        domain_samples.return_value = {
+            "login.example": [25, 30],
+            "cdn.example": [-1, -1],
+        }
+        profile = DnsProfile("Coverage", "1.1.1.1", region="global")
+        result = connectivity_service.benchmark_dns_profile(
+            profile, domains=("login.example", "cdn.example"), rounds=2
+        )
+        self.assertEqual(result["covered_domains"], 1)
+        self.assertEqual(result["domain_count"], 2)
+        self.assertEqual(result["coverage_rate"], 50.0)
+        self.assertEqual(result["domain_success"]["cdn.example"], 0.0)
 
 
 class QualityTests(unittest.TestCase):
