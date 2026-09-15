@@ -25,7 +25,7 @@ jobs:
 
     steps:
       - name: Check out the immutable release tag
-        uses: actions/checkout@v5
+        uses: actions/checkout@v7
         with:
           ref: v1.2.0
           fetch-depth: 0
