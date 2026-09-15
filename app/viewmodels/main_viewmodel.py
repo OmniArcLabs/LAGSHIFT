@@ -685,7 +685,6 @@ class MainViewModel(QObject):
                     return
 
                 domains = profile.domains_for(mission)
-                goal = "balanced" if mission == "download" else "anti_sanction"
                 sinkhole_detected = baseline_diagnosis["code"] == "dns-sinkhole"
                 if sinkhole_detected:
                     # A repeated private answer for unrelated public targets is
@@ -706,9 +705,12 @@ class MainViewModel(QObject):
                 else:
                     self.app_access_progress.emit({
                         "phase": "ranking", "step": 2, "total": 4,
-                        "message": f"DNSها روی {len(domains)} مقصد واقعی {profile.name} آزمایش می‌شوند…",
+                        "message": (
+                            f"FusionDNS Hybrid: DNSهای ایرانی و خارجی روی {len(domains)} "
+                            f"مقصد واقعی {profile.name} مقایسه می‌شوند…"
+                        ),
                     })
-                    ranking = connectivity_service.rank_dns_profiles(
+                    ranking = connectivity_service.rank_hybrid_dns_profiles(
                         self.dns_profiles,
                         progress=lambda row: self.app_access_progress.emit({
                             "phase": "ranking", "step": 2, "total": 4,
@@ -716,7 +718,7 @@ class MainViewModel(QObject):
                             "message": f"آزمایش DNS: {row.get('name', 'در حال بررسی')}",
                         }),
                         preference="stable" if mission == "login" else "balanced",
-                        goal=goal, domains=domains, rounds=dna_rounds,
+                        domains=domains, rounds=dna_rounds, limit=4,
                     )
                 if cancelled():
                     finish_cancelled()
@@ -725,18 +727,18 @@ class MainViewModel(QObject):
                     ranking = route_dna_service.personalize_ranked_dns(
                         ranking, route_context, profile.id
                     )
-                # Three pre-ranked candidates are enough for App Access.  A hard
-                # cap prevents a degraded network from turning one click into
-                # several minutes of retries.
-                ranking = ranking[:3]
+                # Four pre-ranked hybrid candidates preserve Iranian/global
+                # diversity.  The hard cap prevents a degraded network from
+                # turning one click into several minutes of retries.
+                ranking = ranking[:4]
                 if not sinkhole_detected:
                     dns_failure = "هیچ DNS مناسبی پاسخ معتبر نداد"
                 if ranking and not privileged_helper.is_admin():
-                    shortlisted = ranking[:3]
+                    shortlisted = ranking[:4]
                     self.app_access_progress.emit({
                         "phase": "verify", "step": 3, "total": 4,
                         "message": (
-                            "یک‌بار اجازه مدیر را تأیید کن؛ حداکثر ۳ DNS برتر داخل همان "
+                            "یک‌بار اجازه مدیر را تأیید کن؛ حداکثر ۴ DNS برتر ایرانی/خارجی داخل همان "
                             "پنجره و با سقف زمانی مشخص آزمایش می‌شوند."
                         ),
                     })
@@ -791,6 +793,8 @@ class MainViewModel(QObject):
                             "route": "dns", "dns_changed": True,
                             "dns_name": dns_profile.name, "adapter": adapter_name,
                             "dns_score": chosen.get("score", 0),
+                            "dns_coverage_rate": chosen.get("coverage_rate", 0),
+                            "dns_hybrid": True,
                             "dns_candidates_tested": candidate_index,
                             "baseline": baseline, "after": after,
                             "previous_profile": previous_payload,
@@ -867,6 +871,8 @@ class MainViewModel(QObject):
                             "route": "dns", "dns_changed": temporary_dns_changed,
                             "dns_name": dns_profile.name, "adapter": adapter_name,
                             "dns_score": chosen.get("score", 0),
+                            "dns_coverage_rate": chosen.get("coverage_rate", 0),
+                            "dns_hybrid": True,
                             "dns_candidates_tested": candidate_index,
                             "baseline": baseline, "after": after,
                             "previous_profile": previous_payload,
@@ -1567,10 +1573,16 @@ class MainViewModel(QObject):
                     dna_rounds = policy["rounds"] if budget["allowed"] else 1
             except Exception:
                 route_context = {}
-            ranking = connectivity_service.rank_dns_profiles(
-                self.dns_profiles, progress=self.dns_benchmark_progress.emit,
-                preference=preference, goal=goal, rounds=dna_rounds,
-            )
+            if goal == "balanced":
+                ranking = connectivity_service.rank_hybrid_dns_profiles(
+                    self.dns_profiles, progress=self.dns_benchmark_progress.emit,
+                    preference=preference, rounds=dna_rounds, limit=6,
+                )
+            else:
+                ranking = connectivity_service.rank_dns_profiles(
+                    self.dns_profiles, progress=self.dns_benchmark_progress.emit,
+                    preference=preference, goal=goal, rounds=dna_rounds,
+                )
             if route_context:
                 ranking = route_dna_service.personalize_ranked_dns(
                     ranking, route_context, f"dns-{goal}"
@@ -1590,6 +1602,7 @@ class MainViewModel(QObject):
             )
             self._pending_dns_quality = {
                 **best, "ranking": ranking, "preference": preference, "goal": goal,
+                "dns_hybrid": bool(goal == "balanced"),
                 "route_dna": route_context,
                 "route_dna_summary": route_dna_service.summarize(route_context)
                 if route_context else "",
