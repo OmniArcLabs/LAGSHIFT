@@ -6,6 +6,32 @@ All notable public changes to LAGSHIFT are documented here. The format follows
 
 ## [Unreleased]
 
+## [1.3.0] - 2026-09-15
+
+### Added
+
+- Added FusionDNS Hybrid selection across Iranian and global resolver families.
+- Added per-domain DNS coverage evidence for application Login, API and CDN
+  targets so aggregate latency cannot hide a broken endpoint.
+- Added clear FusionDNS progress, selected-route and coverage information to
+  Smart DNS and App Access.
+
+### Changed
+
+- App Access now verifies up to four bounded hybrid candidates while retaining
+  the single-elevation Windows flow and automatic rollback.
+- RouteDNA treats live endpoint coverage as stronger evidence than an older
+  locally learned score.
+- The balanced Smart DNS goal now compares both resolver families and keeps a
+  healthy opposite-family finalist when available.
+
+### Security
+
+- FusionDNS applies one fully verified DNS profile at a time and does not claim
+  unimplemented split-DNS or proxy behavior.
+
+## [1.2.0] - 2026-09-13
+
 ### Added
 
 - Added an installed-runtime health check so the Windows bootstrapper verifies

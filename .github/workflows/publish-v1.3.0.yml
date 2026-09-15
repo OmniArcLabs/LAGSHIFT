@@ -1,0 +1,135 @@
+# One-shot publication job; the payload is always rebuilt from the immutable tag.
+name: Publish LAGSHIFT 1.3.0
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - .github/release-requests/v1.3.0
+
+permissions:
+  contents: write
+
+concurrency:
+  group: publish-lagshift-v1.3.0
+  cancel-in-progress: false
+
+jobs:
+  build-and-publish:
+    runs-on: windows-latest
+    timeout-minutes: 45
+    env:
+      PYTHONUTF8: "1"
+      LAGSHIFT_RELEASE_TAG: v1.3.0
+
+    steps:
+      - name: Check out the immutable release tag
+        uses: actions/checkout@v5
+        with:
+          ref: v1.3.0
+          fetch-depth: 0
+
+      - name: Set up Python 3.12
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+          cache: pip
+
+      - name: Set up .NET 10
+        uses: actions/setup-dotnet@v5
+        with:
+          dotnet-version: 10.0.x
+
+      - name: Install pinned build dependencies
+        shell: pwsh
+        run: |
+          python -m pip install --disable-pip-version-check -r requirements-dev.txt
+          choco install innosetup --no-progress -y
+
+      - name: Prepare isolated release drive
+        shell: pwsh
+        run: |
+          if (Test-Path E:\) {
+            throw "The isolated E: build drive is already occupied on this runner."
+          }
+          subst E: $env:RUNNER_TEMP
+
+      - name: Build and test release installers
+        shell: pwsh
+        run: |
+          $logPath = Join-Path $env:RUNNER_TEMP 'lagshift-release-build.log'
+          $failure = $null
+          try {
+            & .\build-installer.ps1 -PythonPath python *>&1 |
+              Tee-Object -FilePath $logPath
+          }
+          catch {
+            $failure = $_
+          }
+          if ($failure -or $LASTEXITCODE -ne 0) {
+            $tail = (Get-Content -LiteralPath $logPath -Tail 35) -join ' | '
+            $tail = $tail.Replace('%', '%25').Replace("`r", '').Replace("`n", '%0A')
+            Write-Host "::error title=LAGSHIFT release build failed::$tail"
+            if ($failure) { throw $failure }
+            exit $LASTEXITCODE
+          }
+
+      - name: Verify release payload and checksums
+        shell: pwsh
+        run: |
+          $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
+          $full = Join-Path $installerDir 'LAGSHIFT-1.3.0-Setup.exe'
+          $light = Join-Path $installerDir 'LAGSHIFT-1.3.0-Setup-Light.exe'
+          $checksums = Join-Path $installerDir 'SHA256SUMS.txt'
+          $packagedApp = 'E:\LAGSHIFT-Builds\public-rc\dist\LAGSHIFT\LAGSHIFT.exe'
+          foreach ($path in @($full, $light, $checksums, $packagedApp)) {
+            if (-not (Test-Path -LiteralPath $path)) {
+              throw "Missing release artifact: $path"
+            }
+          }
+          $health = Start-Process -FilePath $packagedApp -ArgumentList '--health-check' `
+            -WindowStyle Hidden -Wait -PassThru
+          if ($health.ExitCode -ne 0) {
+            throw "Packaged health check failed with exit code $($health.ExitCode)"
+          }
+          if ((Get-Item -LiteralPath $full).Length -lt 100MB) {
+            throw 'Self-contained installer is unexpectedly small.'
+          }
+          if ((Get-Item -LiteralPath $light).Length -lt 30MB) {
+            throw 'Light installer is unexpectedly small.'
+          }
+          $expected = @{}
+          Get-Content -LiteralPath $checksums | ForEach-Object {
+            if ($_ -match '^([A-Fa-f0-9]{64})\s+(.+)$') {
+              $expected[$Matches[2]] = $Matches[1].ToUpperInvariant()
+            }
+          }
+          foreach ($path in @($full, $light)) {
+            $name = Split-Path -Leaf $path
+            $actual = (Get-FileHash -Algorithm SHA256 -LiteralPath $path).Hash
+            if ($expected[$name] -ne $actual) {
+              throw "Checksum mismatch for $name"
+            }
+            $version = (Get-Item -LiteralPath $path).VersionInfo.FileVersion
+            if ($version -ne '1.3.0.0') {
+              throw "Unexpected file version for ${name}: $version"
+            }
+          }
+
+      - name: Publish GitHub Release
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          $installerDir = 'E:\LAGSHIFT-Builds\public-rc\installer'
+          $assets = @(
+            (Join-Path $installerDir 'LAGSHIFT-1.3.0-Setup-Light.exe'),
+            (Join-Path $installerDir 'LAGSHIFT-1.3.0-Setup.exe'),
+            (Join-Path $installerDir 'SHA256SUMS.txt')
+          )
+          gh release create $env:LAGSHIFT_RELEASE_TAG @assets `
+            --repo $env:GITHUB_REPOSITORY `
+            --verify-tag `
+            --title 'LAGSHIFT 1.3.0 - FusionDNS Hybrid Update' `
+            --notes-file RELEASE_NOTES.md `
+            --latest
