@@ -1,11 +1,11 @@
 {
-  "version": "1.2.0",
+  "version": "1.3.0",
   "channel": "stable",
-  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.2.0/LAGSHIFT-1.2.0-Setup-Light.exe",
-  "sha256": "ca2d9c6b5e370b29db2ae3b0448a9ef804d11a5cc6c4162fd4323ddf2af30969",
-  "size": 38118912,
-  "notes": "به‌روزرسانی پایداری ویندوز: نصب و بازیابی امن‌تر، اعلان‌های قابل‌اعتماد، AppRoute سریع‌تر، تشخیص رهگیری DNS و بهبود راهنمای تعرفه داخلی.",
+  "url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/download/v1.3.0/LAGSHIFT-1.3.0-Setup-Light.exe",
+  "sha256": "27803620dc960e6844383b7817fb88b6631775610fa89674ccbdfdce281a2a9d",
+  "size": 38115328,
+  "notes": "FusionDNS Hybrid: مقایسه DNSهای ایرانی و خارجی، سنجش پوشش مقصدهای Login/API/CDN، انتخاب مسیر کامل‌تر و بازگردانی امن تنظیم قبلی.",
   "mandatory": false,
-  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.2.0",
-  "signature": "LV2gSoGuD4R3CBtltbhg9oEixsyxiRb4XZ+6th/qyDJ6/klXpB/CyD/mvV9z1zd9MJyXhIAlJhpaV9c9PJKMCw=="
+  "release_url": "https://github.com/OmniArcLabs/LAGSHIFT/releases/tag/v1.3.0",
+  "signature": "cBoW7+GvpCZ9VKS/MReQ5khzQjGsMmcpfF2unmKOsAZw4/JL+EtFAkarlSh3mBqnA4B6KkBHoiIX5BxB0QlRDw=="
 }
